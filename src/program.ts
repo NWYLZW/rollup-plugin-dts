@@ -110,6 +110,7 @@ export function getCompilerOptions(
     }.allowJs && input.endsWith('.js')) {
       break recusive;
     }
+    console.log(projectReferences);
     if (!projectReferences?.length) {
       throw new Error(`File "${input}" is not included in the project`);
     }
