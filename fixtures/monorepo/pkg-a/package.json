@@ -1,0 +1,10 @@
+{
+  "name": "pkg-a",
+  "private": true,
+  "dependencies": {
+    "pkg-b": "../pkg-b"
+  },
+  "devDependencies": {
+    "pkg-c": "../pkg-c"
+  }
+}

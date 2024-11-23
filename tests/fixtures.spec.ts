@@ -32,4 +32,5 @@ function build(path: string) {
 
 describe('fixtures', () => {
   test('project with references', build.bind(null, 'project-with-references'));
+  test('monorepo', build.bind(null, 'monorepo'));
 })

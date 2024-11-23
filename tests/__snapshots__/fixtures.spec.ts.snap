@@ -1,5 +1,24 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`fixtures > monorepo 1`] = `
+[
+  "index.d.ts",
+]
+`;
+
+exports[`fixtures > monorepo 2`] = `
+"export * from 'pkg-b';
+
+declare const pkgC = "pkg-c";
+type PkgC = typeof pkgC;
+
+declare const pkgA = "pkg-a";
+type PkgA = typeof pkgA;
+
+export { type PkgA, type PkgC, pkgA, pkgC };
+"
+`;
+
 exports[`fixtures > project with references 1`] = `
 [
   "index.d.ts",

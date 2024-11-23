@@ -1,0 +1,5 @@
+{
+  "name": "pkg-b",
+  "private": true,
+  "exports": "./index.ts"
+}

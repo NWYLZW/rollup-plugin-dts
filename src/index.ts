@@ -211,44 +211,47 @@ const plugin: PluginImpl<Options> = (options = {}) => {
       return treatTsAsDts() ?? generateDtsFromTs();
     },
 
-    resolveId(source, importer) {
-      if (!importer) {
-        // store the entry point, because we need to know which program to add the file
-        ctx.entries.push(path.resolve(source));
-        return;
-      }
+    resolveId: {
+      order: 'post',
+      handler(source, importer) {
+        if (!importer) {
+          // store the entry point, because we need to know which program to add the file
+          ctx.entries.push(path.resolve(source));
+          return;
+        }
 
-      // normalize directory separators to forward slashes, as apparently typescript expects that?
-      importer = importer.split("\\").join("/");
+        // normalize directory separators to forward slashes, as apparently typescript expects that?
+        importer = importer.split("\\").join("/");
 
-      let resolvedCompilerOptions = ctx.resolvedOptions.compilerOptions;
-      if (ctx.resolvedOptions.tsconfig) {
-        // Here we have a chicken and egg problem.
-        // `source` would be resolved by `ts.nodeModuleNameResolver` a few lines below, but
-        // `ts.nodeModuleNameResolver` requires `compilerOptions` which we have to resolve here,
-        // since we have a custom `tsconfig.json`.
-        // So, we use Node's resolver algorithm so we can see where the request is coming from so we
-        // can load the custom `tsconfig.json` from the correct path.
-        const resolvedSource = source.startsWith(".") ? path.resolve(path.dirname(importer), source) : source;
-        resolvedCompilerOptions = getCompilerOptions(
-          resolvedSource,
-          ctx.resolvedOptions.compilerOptions,
-          ctx.resolvedOptions.tsconfig,
-        ).compilerOptions;
-      }
+        let resolvedCompilerOptions = ctx.resolvedOptions.compilerOptions;
+        if (ctx.resolvedOptions.tsconfig) {
+          // Here we have a chicken and egg problem.
+          // `source` would be resolved by `ts.nodeModuleNameResolver` a few lines below, but
+          // `ts.nodeModuleNameResolver` requires `compilerOptions` which we have to resolve here,
+          // since we have a custom `tsconfig.json`.
+          // So, we use Node's resolver algorithm so we can see where the request is coming from so we
+          // can load the custom `tsconfig.json` from the correct path.
+          const resolvedSource = source.startsWith(".") ? path.resolve(path.dirname(importer), source) : source;
+          resolvedCompilerOptions = getCompilerOptions(
+            resolvedSource,
+            ctx.resolvedOptions.compilerOptions,
+            ctx.resolvedOptions.tsconfig,
+          ).compilerOptions;
+        }
 
-      // resolve this via typescript
-      const { resolvedModule } = ts.resolveModuleName(source, importer, resolvedCompilerOptions, ts.sys);
-      if (!resolvedModule) {
-        return;
-      }
+        // resolve this via typescript
+        const { resolvedModule } = ts.resolveModuleName(source, importer, resolvedCompilerOptions, ts.sys);
+        if (!resolvedModule) {
+          return;
+        }
 
-      if (!ctx.resolvedOptions.respectExternal && resolvedModule.isExternalLibraryImport) {
-        // here, we define everything that comes from `node_modules` as `external`.
-        return { id: source, external: true };
-      } else {
-        // using `path.resolve` here converts paths back to the system specific separators
-        return { id: path.resolve(resolvedModule.resolvedFileName) };
+        if (!ctx.resolvedOptions.respectExternal && resolvedModule.isExternalLibraryImport) {
+          // here, we define everything that comes from `node_modules` as `external`.
+          return { id: source, external: true };
+        } else {
+          // using `path.resolve` here converts paths back to the system specific separators
+          return { id: path.resolve(resolvedModule.resolvedFileName) };
+        }
       }
     },
   } satisfies Plugin;
