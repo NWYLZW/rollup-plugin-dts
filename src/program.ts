@@ -95,47 +95,96 @@ export function getCompilerOptions(
   } else {
     logCache("HIT", cacheKey);
   }
-  const { fileNames, projectReferences, options, errors } = configByPath.get(cacheKey)!;
-  recusive: if (!fileNames.includes(input)) {
-    if (options.paths) {
-      for (const key of Object.keys(options.paths)) {
-        if (input.startsWith(key.replace(/\*$/, ""))) {
-          break recusive;
-        }
-      }
+  const { fileNames, projectReferences = [], options, errors } = configByPath.get(cacheKey)!;
+  let forceReturn = false;
+  for (const key of Object.keys(options.paths ?? {})) {
+    const reg = new RegExp(
+      key
+        .replace('.', '\\.')
+        .replace(/\//g, '\\/')
+        .replace(/\*/g, ".*")
+    );
+    if (reg.test(input)) {
+      forceReturn = true;
+      break;
     }
-    if ({
-      ...options,
-      ...compilerOptions,
-    }.allowJs && input.endsWith('.js')) {
-      break recusive;
-    }
-    if (!projectReferences?.length) {
-      throw new Error(`File "${input}" is not included in the project`);
-    }
-    for (const ref of projectReferences) {
-      try {
-        return getCompilerOptions(input, overrideOptions, ref.path);
-      } catch (e) {
-      }
-    }
-    throw new Error(`File "${input}" is not included in the project`);
+  }
+  if ({
+    ...options,
+    ...compilerOptions,
+  }.allowJs && input.endsWith('.js')) {
+    forceReturn = true;
   }
 
-  dtsFiles = fileNames.filter((name) => DTS_EXTENSIONS.test(name));
-  if (errors.length) {
-    console.error(ts.formatDiagnostics(errors, formatHost));
-    return { dtsFiles, dirName, compilerOptions };
+  const maybeInputs = [input];
+  if (!/\/index\.[cm]?tsx?$/.test(input)) {
+    maybeInputs.push(
+      input + '/index.ts',
+      input + '/index.cts',
+      input + '/index.mts',
+      input + '/index.tsx',
+    );
   }
-  return {
-    dtsFiles,
-    dirName,
-    projectReferences,
-    compilerOptions: {
-      ...options,
-      ...compilerOptions,
-    },
-  };
+  if (!/\/index\.[cm]?jsx?$/.test(input)) {
+    maybeInputs.push(
+      input + '/index.js',
+      input + '/index.cjs',
+      input + '/index.mjs',
+      input + '/index.jsx',
+    );
+  }
+  if (!/\/index\.d\.ts$/.test(input)) {
+    maybeInputs.push(input + '/index.d.ts');
+  }
+  if (!/\.[cm]tsx?$/.test(input)) {
+    maybeInputs.push(
+      input + '.ts',
+      input + '.tsx',
+      input + '.cts',
+      input + '.ctsx',
+      input + '.mts',
+      input + '.mtsx',
+    );
+  }
+  if (!/\.[cm]jsx?$/.test(input)) {
+    maybeInputs.push(
+      input + '.js',
+      input + '.jsx',
+      input + '.cjs',
+      input + '.cjsx',
+      input + '.mjs',
+      input + '.mjsx',
+    );
+  }
+  if (!/\.d\.ts$/.test(input)) {
+    maybeInputs.push(input + '.d.ts');
+  }
+  let isInclude = fileNames.findIndex((name) => maybeInputs.includes(name)) !== -1;
+
+  if (isInclude || forceReturn) {
+    dtsFiles = fileNames.filter((name) => DTS_EXTENSIONS.test(name));
+    if (errors.length) {
+      console.error(ts.formatDiagnostics(errors, formatHost));
+      return { dtsFiles, dirName, compilerOptions };
+    }
+    return {
+      dtsFiles,
+      dirName,
+      projectReferences,
+      compilerOptions: {
+        ...options,
+        ...compilerOptions,
+      },
+    };
+  }
+
+  for (const ref of projectReferences) {
+    try {
+      return getCompilerOptions(input, overrideOptions, ref.path);
+    } catch (e) {}
+  }
+
+  throw new Error(`Module ${input} is not included in the tsconfig project: ${cacheKey}`);
 }
 
 export function createProgram(
