@@ -9,7 +9,7 @@ function build(path: string) {
   if (fs.existsSync(resolveByPkg('node_modules')))
     fs.rmdirSync(resolveByPkg('node_modules'), { recursive: true });
 
-  execSync('npm i', {
+  execSync('npm i --silent', {
     cwd: resolveByPkg(),
     stdio: 'inherit'
   });

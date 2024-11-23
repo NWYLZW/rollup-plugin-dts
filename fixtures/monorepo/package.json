@@ -3,7 +3,7 @@
   "private": true,
   "workspaces": ["./pkg-a", "./pkg-b"],
   "scripts": {
-    "build": "rollup -c"
+    "build": "rollup -c --silent"
   },
   "dependencies": {
     "@rollup/plugin-node-resolve": "^15.3.0",

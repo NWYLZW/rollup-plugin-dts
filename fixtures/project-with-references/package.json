@@ -2,7 +2,7 @@
   "name": "project-with-references",
   "private": true,
   "scripts": {
-    "build": "rollup -c"
+    "build": "rollup -c --silent"
   },
   "dependencies": {
     "rollup": "^4.27.3",
