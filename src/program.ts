@@ -136,7 +136,7 @@ export function getCompilerOptions(
   if (!/\/index\.d\.ts$/.test(input)) {
     maybeInputs.push(input + '/index.d.ts');
   }
-  if (!/\.[cm]tsx?$/.test(input)) {
+  if (!/\.[cm]?tsx?$/.test(input)) {
     maybeInputs.push(
       input + '.ts',
       input + '.tsx',
@@ -146,7 +146,20 @@ export function getCompilerOptions(
       input + '.mtsx',
     );
   }
-  if (!/\.[cm]jsx?$/.test(input)) {
+  if (/\.[cm]?jsx?$/.test(input)) {
+    const noSuffixInput = input.replace(/\.[cm]?jsx?$/, '');
+    maybeInputs.push(
+      noSuffixInput + '.ts',
+      noSuffixInput + '.tsx',
+      noSuffixInput + '.cts',
+      noSuffixInput + '.ctsx',
+      noSuffixInput + '.mts',
+      noSuffixInput + '.mtsx',
+      noSuffixInput + '.d.ts',
+      noSuffixInput + '.d.cts',
+      noSuffixInput + '.d.mts',
+    );
+  } else {
     maybeInputs.push(
       input + '.js',
       input + '.jsx',

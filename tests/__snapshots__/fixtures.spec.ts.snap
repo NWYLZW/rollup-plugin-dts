@@ -12,10 +12,13 @@ exports[`fixtures > monorepo 2`] = `
 declare const pkgC = "pkg-c";
 type PkgC = typeof pkgC;
 
+declare const testJsSuffixReplace = "test-js-suffix-replace";
+type TestSuffixReplace = typeof testJsSuffixReplace;
+
 declare const pkgA = "pkg-a";
 type PkgA = typeof pkgA;
 
-export { type PkgA, type PkgC, pkgA, pkgC };
+export { type PkgA, type PkgC, type TestSuffixReplace, pkgA, pkgC, testJsSuffixReplace };
 "
 `;
 
