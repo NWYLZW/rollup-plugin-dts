@@ -33,4 +33,5 @@ function build(path: string, { expect }: TestContext) {
 describe('fixtures', () => {
   test.concurrent('project with references', build.bind(null, 'project-with-references'));
   test.concurrent('monorepo', build.bind(null, 'monorepo'));
+  test.concurrent('import attributes', build.bind(null, 'import-attributes'));
 })

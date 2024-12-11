@@ -1,5 +1,16 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`fixtures > import attributes 1`] = `
+[
+  "index.d.ts",
+]
+`;
+
+exports[`fixtures > import attributes 2`] = `
+"export { sub } from 'foo';
+"
+`;
+
 exports[`fixtures > monorepo 1`] = `
 [
   "index.d.ts",
