@@ -1,10 +1,10 @@
 import { execSync } from "node:child_process";
 import { resolve } from "node:path";
 
-import { expect, test, describe } from "vitest";
+import { test, describe, type TestContext } from "vitest";
 import fs from "node:fs";
 
-function build(path: string) {
+function build(path: string, { expect }: TestContext) {
   const resolveByPkg = (...paths: string[]) => resolve(process.cwd(), `./fixtures/${path}`, ...paths);
   if (fs.existsSync(resolveByPkg('node_modules')))
     fs.rmdirSync(resolveByPkg('node_modules'), { recursive: true });
@@ -31,6 +31,6 @@ function build(path: string) {
 }
 
 describe('fixtures', () => {
-  test('project with references', build.bind(null, 'project-with-references'));
-  test('monorepo', build.bind(null, 'monorepo'));
+  test.concurrent('project with references', build.bind(null, 'project-with-references'));
+  test.concurrent('monorepo', build.bind(null, 'monorepo'));
 })

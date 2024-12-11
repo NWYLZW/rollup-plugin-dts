@@ -22,6 +22,28 @@ export { type PkgA, type PkgC, type TestSuffixReplace, pkgA, pkgC, testJsSuffixR
 "
 `;
 
+exports[`fixtures > monorepo 3`] = `
+[
+  "index.d.ts",
+]
+`;
+
+exports[`fixtures > monorepo 4`] = `
+"export * from 'pkg-b';
+
+declare const pkgC = "pkg-c";
+type PkgC = typeof pkgC;
+
+declare const testJsSuffixReplace = "test-js-suffix-replace";
+type TestSuffixReplace = typeof testJsSuffixReplace;
+
+declare const pkgA = "pkg-a";
+type PkgA = typeof pkgA;
+
+export { type PkgA, type PkgC, type TestSuffixReplace, pkgA, pkgC, testJsSuffixReplace };
+"
+`;
+
 exports[`fixtures > project with references 1`] = `
 [
   "index.d.ts",
