@@ -1,3 +1,4 @@
-import type { sub } from 'foo' with { 'resolution-mode': 'require' }
+import type { sub as CJSSub } from 'foo' with { 'resolution-mode': 'require' }
+import type { sub as MJSSub } from 'foo' with { 'resolution-mode': 'import' }
 
-export { sub }
+export { CJSSub, MJSSub }

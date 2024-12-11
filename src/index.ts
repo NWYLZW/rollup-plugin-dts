@@ -186,9 +186,7 @@ const plugin: PluginImpl<Options> = (options = {}) => {
         const { emitSkipped, diagnostics } = module.program.emit(
           module.source,
           (_, declarationText) => {
-            // console.log({ declarationText })
             generated = transformPlugin.transform.call(this, declarationText, declarationId);
-            // console.log({ generated })
           },
           undefined, // cancellationToken
           true, // emitOnlyDtsFiles

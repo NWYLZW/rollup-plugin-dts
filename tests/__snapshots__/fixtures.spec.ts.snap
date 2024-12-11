@@ -7,7 +7,7 @@ exports[`fixtures > import attributes 1`] = `
 `;
 
 exports[`fixtures > import attributes 2`] = `
-"export { sub } from 'foo';
+"export { sub as CJSSub, sub as MJSSub } from 'foo';
 "
 `;
 
