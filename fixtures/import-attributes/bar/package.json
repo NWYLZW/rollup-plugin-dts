@@ -1,0 +1,11 @@
+{
+  "name": "bar",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": {
+      "import": "./index.js",
+      "require": "./index.cjs"
+    }
+  }
+}

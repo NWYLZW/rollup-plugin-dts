@@ -6,6 +6,7 @@
   },
   "dependencies": {
     "foo": "./foo",
+    "bar": "./bar",
     "rollup": "^4.27.3",
     "rollup-plugin-dts": "../.."
   }

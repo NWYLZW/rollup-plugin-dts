@@ -6,6 +6,27 @@ import { UnsupportedSyntaxError } from "./errors.js";
 
 type ESTreeImports = ESTree.ImportDeclaration["specifiers"];
 
+declare module 'estree' {
+  // https://github.com/estree/estree/blob/master/es2025.md
+  interface ImportDeclaration {
+    attributes: Array<ImportAttribute>;
+  }
+  interface ImportAttribute {
+    type: "ImportAttribute";
+    key: ESTree.Identifier | ESTree.Literal;
+    value: ESTree.Literal;
+  }
+  export interface ImportExpression {
+    options?: ESTree.Expression | null | undefined;
+  }
+  export interface ExportNamedDeclaration {
+    attributes: Array<ImportAttribute>;
+  }
+  export interface ExportAllDeclaration {
+    attributes: Array<ImportAttribute>;
+  }
+}
+
 interface ConvertInput {
   sourceFile: ts.SourceFile;
 }
@@ -211,6 +232,7 @@ class Transformer {
             type: "ExportAllDeclaration",
             source,
             exported: null,
+            attributes: []
           },
           node,
         ),
@@ -223,6 +245,7 @@ class Transformer {
             type: "ExportAllDeclaration",
             source,
             exported: createIdentifier(node.exportClause.name),
+            attributes: []
           },
           node,
         ),
@@ -241,6 +264,7 @@ class Transformer {
             declaration: null,
             specifiers,
             source,
+            attributes: []
           },
           node,
         ),
@@ -270,6 +294,7 @@ class Transformer {
                 local: createIdentifier(node.name),
               },
             ],
+            attributes: [],
             source: convertExpression(node.moduleReference.expression) as any,
           },
           node,
@@ -296,6 +321,19 @@ class Transformer {
           type: "ImportDeclaration",
           specifiers,
           source,
+          attributes: [
+            {
+              type: "ImportAttribute",
+              key: {
+                type: "Literal",
+                value: "external",
+              },
+              value: {
+                type: "Literal",
+                value: "true",
+              }
+            }
+          ]
         },
         node,
       ),
