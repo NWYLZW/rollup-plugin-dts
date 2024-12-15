@@ -41,9 +41,9 @@ function cacheConfig([fromPath, toPath]: [from: string, to: string], config: ts.
   logCache(fromPath);
   configByPath.set(fromPath, config);
   while (
-    fromPath !== toPath &&
+    fromPath !== toPath
     // make sure we're not stuck in an infinite loop
-    fromPath !== path.dirname(fromPath)
+    && fromPath !== path.dirname(fromPath)
   ) {
     fromPath = path.dirname(fromPath);
     logCache("up", fromPath);
@@ -100,77 +100,79 @@ export function getCompilerOptions(
   for (const key of Object.keys(options.paths ?? {})) {
     const reg = new RegExp(
       key
-        .replace('.', '\\.')
-        .replace(/\//g, '\\/')
-        .replace(/\*/g, ".*")
+        .replace(".", "\\.")
+        .replace(/\//g, "\\/")
+        .replace(/\*/g, ".*"),
     );
     if (reg.test(input)) {
       forceReturn = true;
       break;
     }
   }
-  if ({
-    ...options,
-    ...compilerOptions,
-  }.allowJs && input.endsWith('.js')) {
+  if (
+    {
+      ...compilerOptions,
+      ...options,
+    }.allowJs && input.endsWith(".js")
+  ) {
     forceReturn = true;
   }
 
   const maybeInputs = [input];
   if (!/\/index\.[cm]?tsx?$/.test(input)) {
     maybeInputs.push(
-      input + '/index.ts',
-      input + '/index.cts',
-      input + '/index.mts',
-      input + '/index.tsx',
+      input + "/index.ts",
+      input + "/index.cts",
+      input + "/index.mts",
+      input + "/index.tsx",
     );
   }
   if (!/\/index\.[cm]?jsx?$/.test(input)) {
     maybeInputs.push(
-      input + '/index.js',
-      input + '/index.cjs',
-      input + '/index.mjs',
-      input + '/index.jsx',
+      input + "/index.js",
+      input + "/index.cjs",
+      input + "/index.mjs",
+      input + "/index.jsx",
     );
   }
   if (!/\/index\.d\.ts$/.test(input)) {
-    maybeInputs.push(input + '/index.d.ts');
+    maybeInputs.push(input + "/index.d.ts");
   }
   if (!/\.[cm]?tsx?$/.test(input)) {
     maybeInputs.push(
-      input + '.ts',
-      input + '.tsx',
-      input + '.cts',
-      input + '.ctsx',
-      input + '.mts',
-      input + '.mtsx',
+      input + ".ts",
+      input + ".tsx",
+      input + ".cts",
+      input + ".ctsx",
+      input + ".mts",
+      input + ".mtsx",
     );
   }
   if (/\.[cm]?jsx?$/.test(input)) {
-    const noSuffixInput = input.replace(/\.[cm]?jsx?$/, '');
+    const noSuffixInput = input.replace(/\.[cm]?jsx?$/, "");
     maybeInputs.push(
-      noSuffixInput + '.ts',
-      noSuffixInput + '.tsx',
-      noSuffixInput + '.cts',
-      noSuffixInput + '.ctsx',
-      noSuffixInput + '.mts',
-      noSuffixInput + '.mtsx',
-      noSuffixInput + '.d.ts',
-      noSuffixInput + '.d.cts',
-      noSuffixInput + '.d.mts',
+      noSuffixInput + ".ts",
+      noSuffixInput + ".tsx",
+      noSuffixInput + ".cts",
+      noSuffixInput + ".ctsx",
+      noSuffixInput + ".mts",
+      noSuffixInput + ".mtsx",
+      noSuffixInput + ".d.ts",
+      noSuffixInput + ".d.cts",
+      noSuffixInput + ".d.mts",
     );
   } else {
     maybeInputs.push(
-      input + '.js',
-      input + '.jsx',
-      input + '.cjs',
-      input + '.cjsx',
-      input + '.mjs',
-      input + '.mjsx',
+      input + ".js",
+      input + ".jsx",
+      input + ".cjs",
+      input + ".cjsx",
+      input + ".mjs",
+      input + ".mjsx",
     );
   }
   if (!/\.d\.ts$/.test(input)) {
-    maybeInputs.push(input + '.d.ts');
+    maybeInputs.push(input + ".d.ts");
   }
   let isInclude = fileNames.findIndex((name) => maybeInputs.includes(name)) !== -1;
 
@@ -185,8 +187,8 @@ export function getCompilerOptions(
       dirName,
       projectReferences,
       compilerOptions: {
-        ...options,
         ...compilerOptions,
+        ...options,
       },
     };
   }

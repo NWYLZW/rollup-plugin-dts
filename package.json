@@ -40,12 +40,7 @@
     "prebuild": "npm run clean",
     "build": "tsc && rollup --config .build/rollup.config.js",
     "prepublishOnly": "npm run test",
-    "pretest": "npm run build",
     "test": "vitest run tests/fixtures.spec.ts && c8 node .build/tests/index.js"
-  },
-  "prettier": {
-    "printWidth": 120,
-    "trailingComma": "all"
   },
   "devDependencies": {
     "@babel/code-frame": "^7.26.2",
@@ -55,7 +50,8 @@
     "@types/node": "^22.9.0",
     "@types/react": "^18.3.12",
     "c8": "^10.1.2",
-    "rollup": "4.27.2",
+    "dprint": "^0.47.6",
+    "rollup": "4.27.3",
     "typescript": "5.6.3",
     "vitest": "^2.1.5"
   },
@@ -67,6 +63,7 @@
     "@babel/code-frame": "^7.26.2"
   },
   "dependencies": {
-    "magic-string": "^0.30.12"
+    "magic-string": "^0.30.12",
+    "source-map": "^0.7.4"
   }
 }

@@ -1,13 +1,13 @@
 import * as path from "node:path";
-import type { PluginImpl, Plugin } from "rollup";
+import type { Plugin, PluginImpl } from "rollup";
 import ts from "typescript";
-import { type Options, resolveDefaultOptions, type ResolvedOptions } from "./options.js";
-import { createProgram, createPrograms, dts, DTS_EXTENSIONS, formatHost, getCompilerOptions } from "./program.js";
+import { type Options, type ResolvedOptions, resolveDefaultOptions } from "./options.js";
+import { DTS_EXTENSIONS, createProgram, createPrograms, dts, formatHost, getCompilerOptions } from "./program.js";
 import { transform } from "./transform/index.js";
 
 export type { Options };
 
-const TS_EXTENSIONS = /\.([cm]ts|[tj]sx?)$/;
+const TS_EXTENSIONS = /\.([cm]?[tj]sx?)$/;
 
 interface DtsPluginContext {
   /**
@@ -183,10 +183,24 @@ const plugin: PluginImpl<Options> = (options = {}) => {
         const declarationId = id.replace(TS_EXTENSIONS, dts);
 
         let generated!: ReturnType<typeof transformPlugin.transform>;
+        let sourcemapStr: string;
         const { emitSkipped, diagnostics } = module.program.emit(
           module.source,
-          (_, declarationText) => {
-            generated = transformPlugin.transform.call(this, declarationText, declarationId);
+          (fileName, declarationText) => {
+            if (fileName.endsWith(".map")) {
+              const map = JSON.parse(declarationText);
+              map.sourcesContent = [code];
+              sourcemapStr = JSON.stringify(map);
+            } else {
+              if (sourcemapStr) {
+                const sourcemapBase64String = Buffer.from(sourcemapStr).toString("base64");
+                declarationText = declarationText.replace(
+                  /\/\/# sourceMappingURL=.*$/s,
+                  `//# sourceMappingURL=data:application/json;base64,${sourcemapBase64String}`,
+                );
+              }
+              generated = transformPlugin.transform.call(this, declarationText, declarationId);
+            }
           },
           undefined, // cancellationToken
           true, // emitOnlyDtsFiles
@@ -212,7 +226,7 @@ const plugin: PluginImpl<Options> = (options = {}) => {
     },
 
     resolveId: {
-      order: 'post',
+      order: "post",
       handler(source, importer) {
         if (!importer) {
           // store the entry point, because we need to know which program to add the file
@@ -252,9 +266,9 @@ const plugin: PluginImpl<Options> = (options = {}) => {
           // using `path.resolve` here converts paths back to the system specific separators
           return { id: path.resolve(resolvedModule.resolvedFileName) };
         }
-      }
+      },
     },
   } satisfies Plugin;
 };
 
-export { plugin as dts, plugin as default };
+export { plugin as default, plugin as dts };

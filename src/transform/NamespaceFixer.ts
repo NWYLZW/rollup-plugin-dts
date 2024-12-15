@@ -28,16 +28,32 @@ interface Item {
 interface Namespace {
   name: string;
   exports: Array<Export>;
-  location: { start: number; end: number };
+  location: { start: number; end: number; };
   textBeforeCodeAfter?: string;
 }
+
+const genNamespaceExport = (ns: Namespace) => (`
+declare namespace ${ns.name} {
+  export {
+${
+  ns.exports
+    .map(({ exportedName, localName }) => {
+      return exportedName === localName
+        ? `${ns.name}_${exportedName} as ${exportedName}`
+        : `${localName} as ${exportedName}`;
+    })
+    .map((line) => `    ${line},\n`)
+}
+  }
+}
+`.trim());
 
 export class NamespaceFixer {
   constructor(private sourceFile: ts.SourceFile) {}
 
   findNamespaces() {
     const namespaces: Array<Namespace> = [];
-    const items: { [key: string]: Item } = {};
+    const items: { [key: string]: Item; } = {};
 
     for (const node of this.sourceFile.statements) {
       const location = {
@@ -66,12 +82,18 @@ export class NamespaceFixer {
       // `.d.cts` -> `.cjs`
       // `.d.mts` -> `.mjs`
       if (
-        (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
-        node.moduleSpecifier &&
-        ts.isStringLiteral(node.moduleSpecifier)
+        (ts.isImportDeclaration(node) || ts.isExportDeclaration(node))
+        && node.moduleSpecifier
+        && ts.isStringLiteral(node.moduleSpecifier)
       ) {
         const { text } = node.moduleSpecifier;
-        if (text.startsWith(".") && (text.endsWith(".d.ts") || text.endsWith(".d.cts") || text.endsWith(".d.mts"))) {
+        if (
+          text.startsWith(".") && (
+            text.endsWith(".d.ts")
+            || text.endsWith(".d.cts")
+            || text.endsWith(".d.mts")
+          )
+        ) {
           const start = node.moduleSpecifier.getStart() + 1; // +1 to account for the quote
           const end = node.moduleSpecifier.getEnd() - 1; // -1 to account for the quote
           namespaces.unshift({
@@ -143,17 +165,17 @@ export class NamespaceFixer {
       }
       const obj = decl.initializer.arguments[0]!;
       if (
-        !decl.initializer.expression.getFullText().includes("/*#__PURE__*/Object.freeze") ||
-        !ts.isObjectLiteralExpression(obj)
+        !decl.initializer.expression.getFullText().includes("/*#__PURE__*/Object.freeze")
+        || !ts.isObjectLiteralExpression(obj)
       ) {
         continue;
       }
       const exports: Array<Export> = [];
       for (const prop of obj.properties) {
         if (
-          !ts.isPropertyAssignment(prop) ||
-          !(ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name)) ||
-          (prop.name.text !== "__proto__" && !ts.isIdentifier(prop.initializer))
+          !ts.isPropertyAssignment(prop)
+          || !(ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name))
+          || (prop.name.text !== "__proto__" && !ts.isIdentifier(prop.initializer))
         ) {
           throw new UnsupportedSyntaxError(prop, "Expected a property assignment");
         }
@@ -177,55 +199,54 @@ export class NamespaceFixer {
   }
 
   public fix() {
-    let code = this.sourceFile.getFullText();
-
     const { namespaces, itemTypes } = this.findNamespaces();
 
+    const namespaceCodes: Array<[Namespace["location"], string]> = [];
     for (const ns of namespaces) {
-      const codeAfter = code.slice(ns.location.end);
-      code = code.slice(0, ns.location.start);
+      let namespaceCode = "";
 
+      const reexportCodes = [];
       for (const { exportedName, localName } of ns.exports) {
         if (exportedName === localName) {
           const { type, generics } = itemTypes[localName] || {};
-          if (type === "interface" || type === "type") {
-            // an interface is just a type
-            const typeParams = renderTypeParams(generics);
-            code += `type ${ns.name}_${exportedName}${typeParams.in} = ${localName}${typeParams.out};\n`;
-          } else if (type === "enum" || type === "class") {
-            // enums and classes are both types and values
-            const typeParams = renderTypeParams(generics);
-            code += `type ${ns.name}_${exportedName}${typeParams.in} = ${localName}${typeParams.out};\n`;
-            code += `declare const ${ns.name}_${exportedName}: typeof ${localName};\n`;
-          } else if (type === "namespace") {
-            // namespaces may contain both types and values
-            code += `import ${ns.name}_${exportedName} = ${localName};\n`;
-          } else {
-            // functions and vars are just values
-            code += `declare const ${ns.name}_${exportedName}: typeof ${localName};\n`;
+          const variableName = `${ns.name}_${exportedName}`;
+          switch (type) {
+            case "namespace":
+              // namespaces may contain both types and values
+              reexportCodes.push(`import ${variableName} = ${localName}`);
+              break;
+            case "interface":
+            case "type": {
+              // an interface is just a type
+              const typeParams = renderTypeParams(generics);
+              reexportCodes.push(`type ${variableName}${typeParams.in} = ${localName}${typeParams.out}`);
+              break;
+            }
+            case "enum":
+            case "class": {
+              // enums and classes are both types and values
+              const typeParams = renderTypeParams(generics);
+              reexportCodes.push(`type ${variableName}${typeParams.in} = ${localName}${typeParams.out}`);
+              reexportCodes.push(`declare const ${variableName}: typeof ${localName}`);
+              break;
+            }
+            default:
+              // functions and vars are just values
+              reexportCodes.push(`declare const ${variableName}: typeof ${localName}`);
+              break;
           }
         }
       }
+      namespaceCode = reexportCodes.join(";\n");
       if (ns.name) {
-        code += `declare namespace ${ns.name} {\n`;
-        code += `  export {\n`;
-        for (const { exportedName, localName } of ns.exports) {
-          if (exportedName === localName) {
-            code += `    ${ns.name}_${exportedName} as ${exportedName},\n`;
-          } else {
-            code += `    ${localName} as ${exportedName},\n`;
-          }
-        }
-
-        code += `  };\n`;
-        code += `}`;
+        namespaceCode += genNamespaceExport(ns);
       }
+      namespaceCode += ns.textBeforeCodeAfter ?? "";
 
-      code += ns.textBeforeCodeAfter ?? "";
-      code += codeAfter;
+      namespaceCodes.push([ns.location, namespaceCode]);
     }
 
-    return code;
+    return namespaceCodes;
   }
 }
 

@@ -1,5 +1,8 @@
 import MagicString from "magic-string";
 import ts from "typescript";
+
+import { type MappedPosition, SourceMapConsumer } from "source-map";
+import { type SourceMapHelper, getTextHelper, sourceMapHelper } from "../utils/sourcemap-helper.js";
 import { matchesModifier } from "./astHelpers.js";
 import { UnsupportedSyntaxError } from "./errors.js";
 
@@ -30,8 +33,10 @@ interface PreProcessOutput {
  * - [ ] Duplicate the identifiers of a namespace `export`, so that renaming does
  *   not break it
  */
-export function preProcess({ sourceFile }: PreProcessInput): PreProcessOutput {
-  const code = new MagicString(sourceFile.getFullText());
+export async function preProcess({ sourceFile }: PreProcessInput): Promise<PreProcessOutput> {
+  const text = sourceFile.getFullText();
+
+  let [ms, { originalTextHelper }] = await sourceMapHelper(text);
 
   /** All the names that are declared in the `SourceFile`. */
   const declaredNames = new Set<string>();
@@ -44,6 +49,7 @@ export function preProcess({ sourceFile }: PreProcessInput): PreProcessOutput {
   /** The ranges that each name covers, for re-ordering. */
   const nameRanges = new Map<string, Array<Range>>();
 
+  const nodeOffsetRef = { value: 0 };
   /**
    * Pass 1:
    *
@@ -58,16 +64,16 @@ export function preProcess({ sourceFile }: PreProcessInput): PreProcessOutput {
    */
   for (const node of sourceFile.statements) {
     if (ts.isEmptyStatement(node)) {
-      code.remove(node.getStart(), node.getEnd());
+      ms.remove(node.getStart(), node.getEnd());
       continue;
     }
     if (
-      ts.isEnumDeclaration(node) ||
-      ts.isFunctionDeclaration(node) ||
-      ts.isInterfaceDeclaration(node) ||
-      ts.isClassDeclaration(node) ||
-      ts.isTypeAliasDeclaration(node) ||
-      ts.isModuleDeclaration(node)
+      ts.isEnumDeclaration(node)
+      || ts.isFunctionDeclaration(node)
+      || ts.isInterfaceDeclaration(node)
+      || ts.isClassDeclaration(node)
+      || ts.isTypeAliasDeclaration(node)
+      || ts.isModuleDeclaration(node)
     ) {
       // collect the declared name
       if (node.name) {
@@ -87,10 +93,13 @@ export function preProcess({ sourceFile }: PreProcessInput): PreProcessOutput {
 
       // duplicate exports of namespaces
       if (ts.isModuleDeclaration(node)) {
-        duplicateExports(code, node);
+        duplicateExports(ms, node);
       }
 
-      fixModifiers(code, node);
+      await fixModifiers(ms, node, {
+        nodeOffsetRef,
+        originalTextHelper,
+      });
     } else if (ts.isVariableStatement(node)) {
       const { declarations } = node.declarationList;
       // collect all the names, also check if they are exported
@@ -105,7 +114,10 @@ export function preProcess({ sourceFile }: PreProcessInput): PreProcessOutput {
         }
       }
 
-      fixModifiers(code, node);
+      await fixModifiers(ms, node, {
+        nodeOffsetRef,
+        originalTextHelper,
+      });
 
       // collect the ranges for re-ordering
       if (declarations.length === 1) {
@@ -138,16 +150,16 @@ export function preProcess({ sourceFile }: PreProcessInput): PreProcessOutput {
       for (const node of list) {
         if (node.kind === ts.SyntaxKind.CommaToken) {
           commaPos = node.getStart();
-          code.remove(commaPos, node.getEnd());
+          ms.remove(commaPos, node.getEnd());
         } else if (commaPos) {
-          code.appendLeft(commaPos, ";\n");
+          ms.appendLeft(commaPos, ";\n");
           const start = node.getFullStart();
-          const slice = code.slice(start, node.getStart());
+          const slice = ms.slice(start, node.getStart());
           const whitespace = slice.length - slice.trimStart().length;
           if (whitespace) {
-            code.overwrite(start, start + whitespace, prefix);
+            ms.overwrite(start, start + whitespace, prefix);
           } else {
-            code.appendLeft(start, prefix);
+            ms.appendLeft(start, prefix);
           }
         }
       }
@@ -185,14 +197,14 @@ export function preProcess({ sourceFile }: PreProcessInput): PreProcessOutput {
       );
       const token = children[idx]!;
       const nextToken = children[idx + 1]!;
-      const isPunctuation =
-        nextToken.kind >= ts.SyntaxKind.FirstPunctuation && nextToken.kind <= ts.SyntaxKind.LastPunctuation;
+      const isPunctuation = nextToken.kind >= ts.SyntaxKind.FirstPunctuation
+        && nextToken.kind <= ts.SyntaxKind.LastPunctuation;
 
       if (isPunctuation) {
-        const addSpace = code.slice(token.getEnd(), nextToken.getStart()) != " ";
-        code.appendLeft(nextToken.getStart(), `${addSpace ? " " : ""}${defaultExport}`);
+        const addSpace = ms.slice(token.getEnd(), nextToken.getStart()) != " ";
+        ms.appendLeft(nextToken.getStart(), `${addSpace ? " " : ""}${defaultExport}`);
       } else {
-        code.appendRight(token.getEnd(), ` ${defaultExport}`);
+        ms.appendRight(token.getEnd(), ` ${defaultExport}`);
       }
     }
   }
@@ -205,19 +217,19 @@ export function preProcess({ sourceFile }: PreProcessInput): PreProcessOutput {
     const last = ranges.pop()!;
     const start = last[0];
     for (const node of ranges) {
-      code.move(node[0], node[1], start);
+      ms.move(node[0], node[1], start);
     }
   }
 
   // render all the inline imports, and all the exports
   if (defaultExport) {
-    code.append(`\nexport default ${defaultExport};\n`);
+    ms.append(`\nexport default ${defaultExport};\n`);
   }
   if (exportedNames.size) {
-    code.append(`\nexport { ${[...exportedNames].join(", ")} };\n`);
+    ms.append(`\nexport { ${[...exportedNames].join(", ")} };\n`);
   }
   for (const [fileId, importName] of inlineImports.entries()) {
-    code.prepend(`import * as ${importName} from "${fileId}";\n`);
+    ms.prepend(`import * as ${importName} from "${fileId}";\n`);
   }
 
   const lineStarts = sourceFile.getLineStarts();
@@ -230,11 +242,11 @@ export function preProcess({ sourceFile }: PreProcessInput): PreProcessOutput {
     const { line } = sourceFile.getLineAndCharacterOfPosition(ref.pos);
     const start = lineStarts[line]!;
     let end = sourceFile.getLineEndOfPosition(ref.pos);
-    if (code.slice(end, end + 1) === "\n") {
+    if (ms.slice(end, end + 1) === "\n") {
       end += 1;
     }
 
-    code.remove(start, end);
+    ms.remove(start, end);
   }
 
   // and collect/remove all the fileReferenceDirectives
@@ -245,15 +257,18 @@ export function preProcess({ sourceFile }: PreProcessInput): PreProcessOutput {
     const { line } = sourceFile.getLineAndCharacterOfPosition(ref.pos);
     const start = lineStarts[line]!;
     let end = sourceFile.getLineEndOfPosition(ref.pos);
-    if (code.slice(end, end + 1) === "\n") {
+    if (ms.slice(end, end + 1) === "\n") {
       end += 1;
     }
 
-    code.remove(start, end);
+    ms.remove(start, end);
   }
 
+  // console.log({ mappings: ms.generateMap().mappings });
+  // originalTextHelper && await ms.trace();
+  // console.log(`${ms.toString()}\n//# sourceMappingURL=${ms.generateMap({ includeContent: true }).toUrl()}`);
   return {
-    code,
+    code: ms,
     typeReferences,
     fileReferences,
   };
@@ -277,7 +292,7 @@ export function preProcess({ sourceFile }: PreProcessInput): PreProcessOutput {
       }
 
       const importName = createNamespaceImport(fileId);
-      code.overwrite(start, end, importName);
+      ms.overwrite(start, end, importName);
     }
   }
 
@@ -315,35 +330,82 @@ export function preProcess({ sourceFile }: PreProcessInput): PreProcessOutput {
   }
 }
 
-function fixModifiers(code: MagicString, node: ts.Node) {
+async function fixModifiers(ms: SourceMapHelper, node: ts.Node, {
+  nodeOffsetRef,
+  originalTextHelper,
+}: {
+  nodeOffsetRef: { value: number; };
+  originalTextHelper?: ReturnType<typeof getTextHelper>;
+}) {
   // remove the `export` and `default` modifier, add a `declare` if its missing.
   if (!ts.canHaveModifiers(node)) {
     return;
   }
+  const { value: nodeOffset } = nodeOffsetRef;
   let hasDeclare = false;
-  const needsDeclare =
-    ts.isEnumDeclaration(node) ||
-    ts.isClassDeclaration(node) ||
-    ts.isFunctionDeclaration(node) ||
-    ts.isModuleDeclaration(node) ||
-    ts.isVariableStatement(node);
+  const needsDeclare = ts.isEnumDeclaration(node)
+    || ts.isClassDeclaration(node)
+    || ts.isFunctionDeclaration(node)
+    || ts.isModuleDeclaration(node)
+    || ts.isVariableStatement(node);
+
+  let originalStart: number | undefined;
+  if (originalTextHelper) {
+    const textHelper = getTextHelper(ms.toString());
+    const [
+      startLineAndColumn,
+    ] = [
+      textHelper.getLineAndColumnOfPosition(node.getStart()),
+    ];
+    const consumer = await new SourceMapConsumer(ms.generateMap());
+    const originalStartLineAndColumn = consumer.originalPositionFor({
+      ...startLineAndColumn,
+    }) as MappedPosition;
+    if (originalStartLineAndColumn.line === null || originalStartLineAndColumn.column === null) {
+      throw new Error("Source map is invalid");
+    }
+    originalStart = originalTextHelper?.getPositionOfLineAndColmn(
+      originalStartLineAndColumn.line,
+      originalStartLineAndColumn.column,
+    );
+  }
+
   for (const mod of node.modifiers ?? []) {
     switch (mod.kind) {
       case ts.SyntaxKind.ExportKeyword: // fall through
-      case ts.SyntaxKind.DefaultKeyword:
+      case ts.SyntaxKind.DefaultKeyword: {
         // TODO: be careful about that `+ 1`
-        code.remove(mod.getStart(), mod.getEnd() + 1);
+        let [start, end] = [mod.getStart(), mod.getEnd() + 1];
+        if (!originalTextHelper) {
+          ms.remove(start, end);
+          break;
+        }
+        const { value: nodeOffset } = nodeOffsetRef;
+        start -= nodeOffset;
+        end -= nodeOffset;
+        using _ = {
+          [Symbol.dispose]() {
+            nodeOffsetRef.value += end - start;
+          },
+        };
+        await ms.updateByGenerated(start, end, "");
         break;
+      }
       case ts.SyntaxKind.DeclareKeyword:
         hasDeclare = true;
     }
   }
   if (needsDeclare && !hasDeclare) {
-    code.appendRight(node.getStart(), "declare ");
+    const insertDeclare = "declare ";
+    ms.appendRight(
+      (originalStart ?? node.getStart()) - nodeOffset,
+      insertDeclare,
+    );
+    nodeOffsetRef.value -= insertDeclare.length;
   }
 }
 
-function duplicateExports(code: MagicString, module: ts.ModuleDeclaration) {
+function duplicateExports(ms: MagicString, module: ts.ModuleDeclaration) {
   if (!module.body || !ts.isModuleBlock(module.body)) {
     return;
   }
@@ -354,7 +416,7 @@ function duplicateExports(code: MagicString, module: ts.ModuleDeclaration) {
       }
       for (const decl of node.exportClause.elements) {
         if (!decl.propertyName) {
-          code.appendLeft(decl.name.getEnd(), ` as ${decl.name.getText()}`);
+          ms.appendLeft(decl.name.getEnd(), ` as ${decl.name.getText()}`);
         }
       }
     }

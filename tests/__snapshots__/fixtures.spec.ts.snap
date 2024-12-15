@@ -7,7 +7,11 @@ exports[`fixtures > import attributes 1`] = `
 `;
 
 exports[`fixtures > import attributes 2`] = `
-"export { sub as CJSSub, sub as MJSSub } from 'foo';
+"export { foo as CJSSub, foo as MJSSub } from 'foo';
+
+declare const bar = 'bar-mts'
+
+export { bar as cjsSubBar };
 "
 `;
 
@@ -18,28 +22,6 @@ exports[`fixtures > monorepo 1`] = `
 `;
 
 exports[`fixtures > monorepo 2`] = `
-"export * from 'pkg-b';
-
-declare const pkgC = "pkg-c";
-type PkgC = typeof pkgC;
-
-declare const testJsSuffixReplace = "test-js-suffix-replace";
-type TestSuffixReplace = typeof testJsSuffixReplace;
-
-declare const pkgA = "pkg-a";
-type PkgA = typeof pkgA;
-
-export { type PkgA, type PkgC, type TestSuffixReplace, pkgA, pkgC, testJsSuffixReplace };
-"
-`;
-
-exports[`fixtures > monorepo 3`] = `
-[
-  "index.d.ts",
-]
-`;
-
-exports[`fixtures > monorepo 4`] = `
 "export * from 'pkg-b';
 
 declare const pkgC = "pkg-c";
@@ -69,5 +51,84 @@ exports[`fixtures > project with references 2`] = `
 declare const user: User;
 
 export { user };
+"
+`;
+
+exports[`fixtures > sourcemap > bundled 1`] = `
+[
+  "bundled.d.ts",
+]
+`;
+
+exports[`fixtures > sourcemap > bundled 2`] = `
+"declare const bundledSub = "bundledSub";
+type BundledSub = typeof bundledSub;
+
+declare const bundled = "bundled";
+type Bundled = typeof bundled;
+
+export { type Bundled, type BundledSub, bundled, bundledSub };
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlZC5kLnRzIiwic291cmNlcyI6WyIuLi8uLi9zcmMvYnVuZGxlZC1zdWIudHMiLCIuLi8uLi9zcmMvYnVuZGxlZC50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJleHBvcnQgY29uc3QgYnVuZGxlZFN1YiA9IFwiYnVuZGxlZFN1YlwiO1xuZXhwb3J0IHR5cGUgQnVuZGxlZFN1YiA9IHR5cGVvZiBidW5kbGVkU3ViO1xuIiwiZXhwb3J0IGNvbnN0IGJ1bmRsZWQgPSBcImJ1bmRsZWRcIjtcbmV4cG9ydCB0eXBlIEJ1bmRsZWQgPSB0eXBlb2YgYnVuZGxlZDtcbmV4cG9ydCAqIGZyb20gXCIuL2J1bmRsZWQtc3ViXCI7XG4iXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsT0FBQSxDQUFBLEtBQUEsQ0FBYSxVQUFVLENBQUEsQ0FBQSxDQUFBLENBQUEsVUFBQSxDQUFBO0FBQ3ZCLElBQVksQ0FBQSxVQUFVLFVBQVUsVUFBVTs7QUNEMUMsT0FBQSxDQUFBLEtBQUEsQ0FBYSxPQUFPLENBQUEsQ0FBQSxDQUFBLENBQUEsT0FBQSxDQUFBO0FBQ3BCLElBQVksQ0FBQSxPQUFPLFVBQVUsT0FBTzs7In0=
+"
+`;
+
+exports[`fixtures > sourcemap > clazz 1`] = `
+[
+  "clazz.d.ts",
+]
+`;
+
+exports[`fixtures > sourcemap > clazz 2`] = `
+"declare class Foo {
+    bar(): string;
+    baz(): string;
+}
+
+export { Foo };
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2xhenouZC50cyIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2NsYXp6LnRzIl0sInNvdXJjZXNDb250ZW50IjpbImV4cG9ydCBjbGFzcyBGb28ge1xuICBiYXIoKSB7XG4gICAgcmV0dXJuIFwiYmFyXCI7XG4gIH1cbiAgYmF6KCkge1xuICAgIHJldHVybiBcImJhelwiO1xuICB9XG59XG4iXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsT0FBQSxDQUFBLEtBQUEsQ0FBYSxHQUFHLENBQUE7QUFBQSxDQUFBLENBQUEsQ0FBQSxDQUFBLEdBQUEsQ0FBQSxDQUFBLENBQUEsQ0FBQSxNQUFBO0FBQ1gsQ0FBQSxDQUFBLENBQUEsQ0FBQSxHQUFBLENBQUEsQ0FBQSxDQUFBLENBQUEsTUFBQTtBQUdBOzsifQ==
+"
+`;
+
+exports[`fixtures > sourcemap > default 1`] = `
+[
+  "index.d.ts",
+]
+`;
+
+exports[`fixtures > sourcemap > default 2`] = `
+"declare function foo(): string;
+
+export { foo as default };
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5kZXguZC50cyIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2luZGV4LnRzIl0sInNvdXJjZXNDb250ZW50IjpbImV4cG9ydCBkZWZhdWx0IGZ1bmN0aW9uIGZvbygpIHtcbiAgcmV0dXJuICdmb28nXG59XG4iXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQU8sT0FBQSxDQUFBLFFBQUEsQ0FBaUIsR0FBRyxDQUFBLENBQUEsQ0FBQSxDQUFBLE1BQUE7OyJ9
+"
+`;
+
+exports[`fixtures > sourcemap > named 1`] = `
+[
+  "named.d.ts",
+]
+`;
+
+exports[`fixtures > sourcemap > named 2`] = `
+"declare function foo(): string;
+
+export { foo };
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoibmFtZWQuZC50cyIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL25hbWVkLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImV4cG9ydCBmdW5jdGlvbiBmb28oKSB7XG4gIHJldHVybiAnZm9vJ1xufVxuIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE9BQUEsQ0FBQSxRQUFBLENBQWdCLEdBQUcsQ0FBQSxDQUFBLENBQUEsQ0FBQSxNQUFBOzsifQ==
+"
+`;
+
+exports[`fixtures > sourcemap > overload default export 1`] = `
+[
+  "overload-default-export.d.ts",
+]
+`;
+
+exports[`fixtures > sourcemap > overload default export 2`] = `
+"declare function foo(a: number): number;
+declare function foo(a: bigint): bigint;
+declare function foo(): string;
+
+export { foo as default };
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoib3ZlcmxvYWQtZGVmYXVsdC1leHBvcnQuZC50cyIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL292ZXJsb2FkLWRlZmF1bHQtZXhwb3J0LnRzIl0sInNvdXJjZXNDb250ZW50IjpbImV4cG9ydCBkZWZhdWx0IGZ1bmN0aW9uIGZvbyhhOiBudW1iZXIpOiBudW1iZXI7XG5leHBvcnQgZGVmYXVsdCBmdW5jdGlvbiBmb28oYTogYmlnaW50KTogYmlnaW50O1xuZXhwb3J0IGRlZmF1bHQgZnVuY3Rpb24gZm9vKCk6IHN0cmluZztcbmV4cG9ydCBkZWZhdWx0IGZ1bmN0aW9uIGZvbygpOiBudW1iZXIgfCBiaWdpbnQgfCBzdHJpbmcge1xuICByZXR1cm4gXCJmb29cIjtcbn1cbiJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBTyxPQUFBLENBQUEsUUFBQSxDQUFpQixHQUFHLENBQUEsQ0FBQSxDQUFBLENBQUEsTUFBQSxDQUFBLENBQUEsQ0FBQSxNQUFBO0FBQ3BCLE9BQUEsQ0FBQSxRQUFBLENBQWlCLEdBQUcsQ0FBQSxDQUFBLENBQUEsQ0FBQSxNQUFBLENBQUEsQ0FBQSxDQUFBLE1BQUE7aUJBQ0gsR0FBRyxDQUFBLENBQUEsQ0FBQSxDQUFBLE1BQUE7OyJ9
 "
 `;

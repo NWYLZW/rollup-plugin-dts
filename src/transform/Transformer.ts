@@ -315,25 +315,18 @@ class Transformer {
       });
     }
 
+    // const createAttribute = (key: string, value: string) => ({
+    //   type: "ImportAttribute",
+    //   key: { type: "Literal", value: key },
+    //   value: { type: "Literal", value: value }
+    // })
     this.pushStatement(
       withStartEnd(
         {
           type: "ImportDeclaration",
           specifiers,
           source,
-          attributes: [
-            {
-              type: "ImportAttribute",
-              key: {
-                type: "Literal",
-                value: "external",
-              },
-              value: {
-                type: "Literal",
-                value: "true",
-              }
-            }
-          ]
+          attributes: []
         },
         node,
       ),

@@ -1,10 +1,11 @@
 import * as path from "node:path";
 import type { Plugin } from "rollup";
 import ts from "typescript";
+import { sourceMapHelper } from "../utils/sourcemap-helper.js";
+import { ExportsFinder } from "./ExportsFinder.js";
 import { NamespaceFixer } from "./NamespaceFixer.js";
-import { preProcess } from "./preprocess.js";
 import { convert } from "./Transformer.js";
-import { ExportsFixer } from "./ExportsFixer.js";
+import { preProcess } from "./preprocess.js";
 
 function parse(fileName: string, code: string): ts.SourceFile {
   return ts.createSourceFile(fileName, code, ts.ScriptTarget.Latest, true);
@@ -71,9 +72,9 @@ export const transform = () => {
       };
     },
 
-    transform(code, fileName) {
+    async transform(code, fileName) {
       let sourceFile = parse(fileName, code);
-      const preprocessed = preProcess({ sourceFile });
+      const preprocessed = await preProcess({ sourceFile });
       // `sourceFile.fileName` here uses forward slashes
       allTypeReferences.set(sourceFile.fileName, preprocessed.typeReferences);
       allFileReferences.set(sourceFile.fileName, preprocessed.fileReferences);
@@ -89,12 +90,23 @@ export const transform = () => {
         console.log(JSON.stringify(converted.ast.body, undefined, 2));
       }
 
-      return { code, ast: converted.ast as any, map: preprocessed.code.generateMap() as any };
+      return {
+        code,
+        map: preprocessed.code.generateMap({ includeContent: true }),
+        ast: converted.ast as any,
+      };
     },
 
-    renderChunk(inputCode, chunk, options) {
-      const source = parse(chunk.fileName, inputCode);
-      const fixer = new NamespaceFixer(source);
+    async renderChunk(inputCode, chunk, options) {
+      const enableSourceMap = options.sourcemap !== "hidden" && options.sourcemap !== false;
+      // console.log({
+      //   inputCode,
+      //   facadeModuleId,
+      //   content: sourcemap?.sourcesContent?.[0],
+      //   mappings: sourcemap?.mappings,
+      // });
+      const [ms] = await sourceMapHelper(inputCode);
+      // enableSourceMap && await ms.trace();
 
       const typeReferences = new Set<string>();
       const fileReferences = new Set<string>();
@@ -106,10 +118,9 @@ export const transform = () => {
           if (ref.startsWith(".")) {
             // Need absolute path of the target file here
             const absolutePathToOriginal = path.join(path.dirname(fileName), ref);
-            const chunkFolder =
-              (options.file && path.dirname(options.file)) ||
-              (chunk.facadeModuleId && path.dirname(chunk.facadeModuleId!)) ||
-              ".";
+            const chunkFolder = (options.file && path.dirname(options.file))
+              || (chunk.facadeModuleId && path.dirname(chunk.facadeModuleId!))
+              || ".";
             let targetRelPath = path.relative(chunkFolder, absolutePathToOriginal).split("\\").join("/");
             if (targetRelPath[0] !== ".") {
               targetRelPath = "./" + targetRelPath;
@@ -121,24 +132,44 @@ export const transform = () => {
         }
       }
 
-      let code = writeBlock(Array.from(fileReferences, (ref) => `/// <reference path="${ref}" />`));
-      code += writeBlock(Array.from(typeReferences, (ref) => `/// <reference types="${ref}" />`));
-      code += fixer.fix();
+      const refLines = [
+        ...Array.from(fileReferences, (ref) => `/// <reference path="${ref}" />`),
+        ...Array.from(typeReferences, (ref) => `/// <reference types="${ref}" />`),
+        "",
+      ];
+      refLines.length > 1
+        && ms.prepend(refLines.join("\n"));
 
-      if (!code) {
-        code += "\nexport { }";
+      let code = ms.toString();
+      if (code === "") {
+        return "export { }";
+      }
+      for (let [location, generatedCode] of new NamespaceFixer(parse(chunk.fileName, code)).fix()) {
+        const originalCode = code.slice(location.start, location.end);
+        if (originalCode === generatedCode) continue;
+
+        ms.update(location.start, location.end, generatedCode);
+      }
+      code = ms.toString();
+      for (let [location, generatedCode] of new ExportsFinder(parse(chunk.fileName, code)).findExports()) {
+        const originalCode = code.slice(location.start, location.end);
+        if (originalCode === generatedCode) continue;
+
+        ms.update(location.start, location.end, generatedCode);
+      }
+      code = ms.toString();
+      if (!enableSourceMap) {
+        return code;
       }
 
-      const exportsFixer = new ExportsFixer(parse(chunk.fileName, code));
-
-      return { code: exportsFixer.fix(), map: { mappings: "" } };
+      // console.log(`${ms.toString()}\n//# sourceMappingURL=${ms.generateMap({ includeContent: true }).toUrl()}`);
+      return {
+        code,
+        map: ms.generateMap({
+          includeContent: true,
+          hires: "boundary",
+        }),
+      };
     },
   } satisfies Plugin;
 };
-
-function writeBlock(codes: Array<string>): string {
-  if (codes.length) {
-    return codes.join("\n") + "\n";
-  }
-  return "";
-}
