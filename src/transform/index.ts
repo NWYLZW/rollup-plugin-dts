@@ -1,9 +1,9 @@
 import * as path from "node:path";
 import type { Plugin } from "rollup";
 import ts from "typescript";
-import { sourceMapHelper } from "../utils/sourcemap-helper.js";
+import { getTextHelper, sourceMapHelper } from "../utils/sourcemap-helper.js";
 import { ExportsFinder } from "./ExportsFinder.js";
-import { NamespaceFixer } from "./NamespaceFixer.js";
+import { NamespaceFinder } from "./NamespaceFinder.js";
 import { convert } from "./Transformer.js";
 import { preProcess } from "./preprocess.js";
 
@@ -105,7 +105,9 @@ export const transform = () => {
       //   content: sourcemap?.sourcesContent?.[0],
       //   mappings: sourcemap?.mappings,
       // });
-      const [ms] = await sourceMapHelper(inputCode);
+      const [ms] = await sourceMapHelper(inputCode, {
+        mock: !enableSourceMap,
+      });
       // enableSourceMap && await ms.trace();
 
       const typeReferences = new Set<string>();
@@ -144,18 +146,54 @@ export const transform = () => {
       if (code === "") {
         return "export {  }";
       }
-      for (let [location, generatedCode] of new NamespaceFixer(parse(chunk.fileName, code)).fix()) {
+
+      // enableSourceMap
+      //   && console.log(
+      //     `${ms.toString()}\n//# sourceMappingURL=${
+      //       ms.generateMap({ hires: "boundary", includeContent: true }).toUrl()
+      //     }`,
+      //   );
+      let overrideOriginalTextHelper: undefined | ReturnType<typeof getTextHelper> = code === inputCode
+        ? undefined
+        : getTextHelper(inputCode);
+      for (let [location, generatedCode] of new NamespaceFinder(parse(chunk.fileName, code)).fix()) {
         const originalCode = code.slice(location.start, location.end);
         if (originalCode === generatedCode) continue;
 
-        ms.update(location.start, location.end, generatedCode);
+        console.log({ location, originalCode, generatedCode });
+        if (overrideOriginalTextHelper) {
+          await ms.updateByGenerated(location.start, location.end + 1, generatedCode, {
+            overrideOriginalTextHelper,
+          });
+        } else {
+          ms.update(location.start, location.end, generatedCode);
+          overrideOriginalTextHelper = getTextHelper(inputCode);
+        }
       }
+
       code = ms.toString();
+      // enableSourceMap
+      //   && console.log(
+      //     `${ms.toString()}\n//# sourceMappingURL=${
+      //       ms.generateMap({ hires: "boundary", includeContent: true }).toUrl()
+      //     }`,
+      //   );
+      overrideOriginalTextHelper = code === inputCode
+        ? undefined
+        : getTextHelper(inputCode);
       for (let [location, generatedCode] of new ExportsFinder(parse(chunk.fileName, code)).findExports()) {
         const originalCode = code.slice(location.start, location.end);
         if (originalCode === generatedCode) continue;
 
-        ms.update(location.start, location.end, generatedCode);
+        console.log({ location, originalCode, generatedCode });
+        if (overrideOriginalTextHelper) {
+          await ms.updateByGenerated(location.start, location.end + 1, generatedCode, {
+            overrideOriginalTextHelper,
+          });
+        } else {
+          ms.update(location.start, location.end, generatedCode);
+          overrideOriginalTextHelper = getTextHelper(inputCode);
+        }
       }
       code = ms.toString();
       if (!enableSourceMap) {

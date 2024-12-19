@@ -44,16 +44,16 @@ ${
     })
     .map((line) => `    ${line},\n`)
 }
-  }
+  };
 }
 `.trim());
 
-export class NamespaceFixer {
+export class NamespaceFinder {
   constructor(private sourceFile: ts.SourceFile) {}
 
   findNamespaces() {
     const namespaces: Array<Namespace> = [];
-    const items: { [key: string]: Item; } = {};
+    const itemTypes: { [key: string]: Item; } = {};
 
     for (const node of this.sourceFile.statements) {
       const location = {
@@ -136,19 +136,19 @@ export class NamespaceFixer {
       }
 
       if (ts.isClassDeclaration(node)) {
-        items[node.name!.getText()] = { type: "class", generics: node.typeParameters };
+        itemTypes[node.name!.getText()] = { type: "class", generics: node.typeParameters };
       } else if (ts.isFunctionDeclaration(node)) {
         // a function has generics, but these don’t need to be specified explicitly,
         // since functions are treated as values.
-        items[node.name!.getText()] = { type: "function" };
+        itemTypes[node.name!.getText()] = { type: "function" };
       } else if (ts.isInterfaceDeclaration(node)) {
-        items[node.name.getText()] = { type: "interface", generics: node.typeParameters };
+        itemTypes[node.name.getText()] = { type: "interface", generics: node.typeParameters };
       } else if (ts.isTypeAliasDeclaration(node)) {
-        items[node.name.getText()] = { type: "type", generics: node.typeParameters };
+        itemTypes[node.name.getText()] = { type: "type", generics: node.typeParameters };
       } else if (ts.isModuleDeclaration(node) && ts.isIdentifier(node.name)) {
-        items[node.name.getText()] = { type: "namespace" };
+        itemTypes[node.name.getText()] = { type: "namespace" };
       } else if (ts.isEnumDeclaration(node)) {
-        items[node.name.getText()] = { type: "enum" };
+        itemTypes[node.name.getText()] = { type: "enum" };
       }
       if (!ts.isVariableStatement(node)) {
         continue;
@@ -160,7 +160,7 @@ export class NamespaceFixer {
       const decl = declarations[0]!;
       const name = decl.name.getText();
       if (!decl.initializer || !ts.isCallExpression(decl.initializer)) {
-        items[name] = { type: "var" };
+        itemTypes[name] = { type: "var" };
         continue;
       }
       const obj = decl.initializer.arguments[0]!;
@@ -195,7 +195,7 @@ export class NamespaceFixer {
         location,
       });
     }
-    return { namespaces, itemTypes: items };
+    return { namespaces, itemTypes };
   }
 
   public fix() {
@@ -237,7 +237,7 @@ export class NamespaceFixer {
           }
         }
       }
-      namespaceCode = reexportCodes.join(";\n");
+      namespaceCode = reexportCodes.join(";\n") + ";\n";
       if (ns.name) {
         namespaceCode += genNamespaceExport(ns);
       }

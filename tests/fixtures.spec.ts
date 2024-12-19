@@ -79,5 +79,6 @@ describe("fixtures", () => {
     test.concurrent("named", sourcemapBuild.runWithoutHook.bind(null, "named"));
     test.concurrent("bundled", sourcemapBuild.runWithoutHook.bind(null, "bundled"));
     test.concurrent("clazz", sourcemapBuild.runWithoutHook.bind(null, "clazz"));
+    test.concurrent.skip("export star as", sourcemapBuild.runWithoutHook.bind(null, "export-star-as/index"));
   });
 });

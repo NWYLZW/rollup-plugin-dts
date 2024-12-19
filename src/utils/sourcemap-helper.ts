@@ -3,7 +3,12 @@ import { type MappedPosition, type MappingItem, SourceMapConsumer } from "source
 
 interface ExtendMS {
   trace: () => Promise<void>;
-  updateByGenerated: (start: number, end: number, code: string) => Promise<void>;
+  updateByGenerated: (
+    start: number,
+    end: number,
+    code: string,
+    options?: { overrideOriginalTextHelper?: ReturnType<typeof getTextHelper>; },
+  ) => Promise<void>;
 }
 
 type LineAndColumn = { line: number; column: number; };
@@ -90,8 +95,10 @@ export interface SourceMapHelper extends MagicString, ExtendMS {}
 
 export const sourceMapHelper = async (text: string, {
   sourcemap,
+  mock = false,
 }: {
   sourcemap?: SourceMap;
+  mock?: boolean;
 } = {}) => {
   const existingMap = !!sourcemap || INLINE_SOURCE_MAP_REGEX.exec(text);
   let ms: MagicString;
@@ -130,7 +137,10 @@ export const sourceMapHelper = async (text: string, {
         },
       );
     },
-    async updateByGenerated(start, end, code) {
+    async updateByGenerated(start, end, code, {
+      overrideOriginalTextHelper = originalTextHelper,
+    } = {}) {
+      const originalTextHelper = overrideOriginalTextHelper;
       if (!originalTextHelper) {
         ms.update(start, end, code);
         return;
@@ -207,7 +217,8 @@ export const sourceMapHelper = async (text: string, {
       const generaredStart = textHelper.getPositionOfLineAndColmn(generated.start.line!, generated.start.column!);
       const startInGenerated = start - generaredStart;
       const endInGenerated = end - generaredStart;
-      const reGeneratedContent = generatedContent.slice(0, startInGenerated) + code
+      const reGeneratedContent = generatedContent.slice(0, startInGenerated)
+        + code
         + generatedContent.slice(endInGenerated);
 
       // console.log({
@@ -285,13 +296,165 @@ export const sourceMapHelper = async (text: string, {
       },
     );
   } else {
-    ms = new MagicString(text);
+    const initialText = text;
+    ms = mock
+      ? {
+        original: initialText,
+
+        clone() {
+          return ms;
+        },
+        snip() {
+          throw new Error("Mocked MagicString does not support snip");
+        },
+
+        lastChar() {
+          return text[text.length - 1] ?? "";
+        },
+        lastLine() {
+          let lastline = "";
+          let i = text.length - 1;
+          while (i >= 0 && text[i] !== "\n") {
+            lastline = text[i] + lastline;
+            i--;
+          }
+          return lastline;
+        },
+
+        update(start, end, content) {
+          text = text.slice(0, start) + content + text.slice(end);
+          return ms;
+        },
+        overwrite(start, end, content) {
+          return ms.update(start, end, content);
+        },
+        slice(start, end) {
+          return text.slice(start, end);
+        },
+        replace(regex, replacement) {
+          // make ts happy
+          if (typeof replacement === "string") {
+            text = text.replace(regex, replacement);
+          } else {
+            text = text.replace(regex, replacement);
+          }
+          return ms;
+        },
+        replaceAll(regex, replacement) {
+          // make ts happy
+          if (typeof replacement === "string") {
+            text = text.replaceAll(regex, replacement);
+          } else {
+            text = text.replaceAll(regex, replacement);
+          }
+          return ms;
+        },
+        reset(start: number, end: number) {
+          text = text.slice(0, start) + initialText.slice(start, end) + text.slice(end);
+          return ms;
+        },
+
+        append(content) {
+          text += content;
+          return ms;
+        },
+        prepend(content) {
+          text = content + text;
+          return ms;
+        },
+        move(start, end, index) {
+          const content = text.slice(start, end);
+          text = text.slice(0, start) + text.slice(end, index) + content + text.slice(index);
+          return ms;
+        },
+        remove(start, end) {
+          text = text.slice(0, start) + text.slice(end);
+          return ms;
+        },
+        appendLeft(index, content) {
+          text = text.slice(0, index) + content + text.slice(index);
+          return ms;
+        },
+        appendRight(index, content) {
+          text = text.slice(0, index) + content + text.slice(index);
+          return ms;
+        },
+        prependLeft(index, content) {
+          text = text.slice(0, index) + content + text.slice(index);
+          return ms;
+        },
+        prependRight(index, content) {
+          text = text.slice(0, index) + content + text.slice(index);
+          return ms;
+        },
+
+        trim() {
+          text = text.trim();
+          return ms;
+        },
+        trimStart() {
+          text = text.trimStart();
+          return ms;
+        },
+        trimEnd() {
+          text = text.trimEnd();
+          return ms;
+        },
+        trimLines() {
+          text = text.trim().replace(/\n\s+/g, "\n");
+          return ms;
+        },
+
+        getIndentString() {
+          throw new Error("Mocked MagicString does not support getIndentString");
+        },
+        indent() {
+          throw new Error("Mocked MagicString does not support indent");
+        },
+        indentExclusionRanges: [],
+
+        addSourcemapLocation() {
+          return ms;
+        },
+
+        isEmpty() {
+          return text === "";
+        },
+        length(): number {
+          return text.length;
+        },
+        hasChanged() {
+          return text !== initialText;
+        },
+        toString() {
+          return text;
+        },
+        generateMap(): any {
+          throw new Error("Mocked MagicString does not support generateMap");
+        },
+        generateDecodedMap(): any {
+          throw new Error("Mocked MagicString does not support generateDecodedMap");
+        },
+      } satisfies MagicString
+      : new MagicString(text, {
+        indentExclusionRanges: [],
+      });
     textHelper = getTextHelper(text);
   }
   return [
     new Proxy(ms as MagicString & ExtendMS, {
       get(target, key: string) {
         if (!["toString"].includes(key) && key in extendMS) {
+          if (mock) {
+            return ({
+              trace() {
+                throw new Error("Mocked MagicString does not support trace");
+              },
+              async updateByGenerated(start, end, code) {
+                ms.update(start, end, code);
+              },
+            } satisfies ExtendMS)[key as keyof ExtendMS];
+          }
           return extendMS[key as keyof ExtendMS];
         }
         return Reflect.get(target, key);
