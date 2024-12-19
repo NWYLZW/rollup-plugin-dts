@@ -142,7 +142,7 @@ export const transform = () => {
 
       let code = ms.toString();
       if (code === "") {
-        return "export { }";
+        return "export {  }";
       }
       for (let [location, generatedCode] of new NamespaceFixer(parse(chunk.fileName, code)).fix()) {
         const originalCode = code.slice(location.start, location.end);
