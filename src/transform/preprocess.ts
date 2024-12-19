@@ -397,11 +397,12 @@ async function fixModifiers(ms: SourceMapHelper, node: ts.Node, {
   }
   if (needsDeclare && !hasDeclare) {
     const insertDeclare = "declare ";
-    ms.appendRight(
-      (originalStart ?? node.getStart()) - nodeOffset,
-      insertDeclare,
-    );
-    nodeOffsetRef.value -= insertDeclare.length;
+    let insertPos = originalStart ?? node.getStart();
+    if (originalTextHelper) {
+      insertPos -= nodeOffset;
+      nodeOffsetRef.value -= insertDeclare.length;
+    }
+    ms.appendRight(insertPos, insertDeclare);
   }
 }
 
