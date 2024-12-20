@@ -239,7 +239,9 @@ export class NamespaceFinder {
           }
         }
       }
-      namespaceCode = reexportCodes.join("\n") + "\n";
+      namespaceCode = reexportCodes.length > 0
+        ? reexportCodes.join("\n") + "\n"
+        : "";
       if (ns.name) {
         namespaceCode += genNamespaceExport(ns);
       }
