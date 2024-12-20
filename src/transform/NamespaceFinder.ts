@@ -42,7 +42,9 @@ ${
         ? `${ns.name}_${exportedName} as ${exportedName}`
         : `${localName} as ${exportedName}`;
     })
-    .map((line) => `    ${line},\n`)
+    .map((line) => `    ${line}`)
+    .join(",\n")
+  + ","
 }
   };
 }

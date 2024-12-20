@@ -8,10 +8,6 @@ function genBuild(path: string) {
   const resolveByPkg = (...paths: string[]) => resolve(process.cwd(), `./fixtures/${path}`, ...paths);
 
   function before() {
-    if (fs.existsSync(resolveByPkg("node_modules"))) {
-      fs.rmdirSync(resolveByPkg("node_modules"), { recursive: true });
-    }
-
     execSync("npm i --silent", {
       cwd: resolveByPkg(),
       stdio: "inherit",
@@ -79,6 +75,6 @@ describe("fixtures", () => {
     test.concurrent("named", sourcemapBuild.runWithoutHook.bind(null, "named"));
     test.concurrent("bundled", sourcemapBuild.runWithoutHook.bind(null, "bundled"));
     test.concurrent("clazz", sourcemapBuild.runWithoutHook.bind(null, "clazz"));
-    test.concurrent.skip("export star as", sourcemapBuild.runWithoutHook.bind(null, "export-star-as/index"));
+    test.concurrent("export star as", sourcemapBuild.runWithoutHook.bind(null, "export-star-as/index"));
   });
 });

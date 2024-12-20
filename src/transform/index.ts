@@ -34,7 +34,7 @@ export const transform = () => {
   const allFileReferences = new Map<string, Set<string>>();
 
   return {
-    name: "dts-transform",
+    name: "dts:transform",
 
     options({ onLog, ...options }) {
       return {
@@ -73,42 +73,31 @@ export const transform = () => {
     },
 
     async transform(code, fileName) {
+      code = code.replace(/\n\/\/# sourceMappingURL=.+$/s, "\n");
       let sourceFile = parse(fileName, code);
-      const preprocessed = await preProcess({ sourceFile });
+      const { typeReferences, fileReferences, ms } = preProcess({ sourceFile });
       // `sourceFile.fileName` here uses forward slashes
-      allTypeReferences.set(sourceFile.fileName, preprocessed.typeReferences);
-      allFileReferences.set(sourceFile.fileName, preprocessed.fileReferences);
+      allTypeReferences.set(sourceFile.fileName, typeReferences);
+      allFileReferences.set(sourceFile.fileName, fileReferences);
 
-      code = preprocessed.code.toString();
-
-      sourceFile = parse(fileName, code);
-      const converted = convert({ sourceFile });
-
-      if (process.env.DTS_DUMP_AST) {
-        console.log(fileName);
-        console.log(code);
-        console.log(JSON.stringify(converted.ast.body, undefined, 2));
-      }
-
+      const newCode = ms.toString();
+      // console.log(
+      //   `${ms.toString()}\n//# sourceMappingURL=${ms.generateMap({ hires: "boundary", includeContent: true }).toUrl()}`,
+      // );
       return {
-        code,
-        map: preprocessed.code.generateMap({ includeContent: true }),
-        ast: converted.ast as any,
+        code: newCode,
+        map: ms.generateMap({ hires: "boundary" }),
+        ast: convert({
+          sourceFile: parse(fileName, newCode),
+        }).ast as any,
       };
     },
 
     async renderChunk(inputCode, chunk, options) {
       const enableSourceMap = options.sourcemap !== "hidden" && options.sourcemap !== false;
-      // console.log({
-      //   inputCode,
-      //   facadeModuleId,
-      //   content: sourcemap?.sourcesContent?.[0],
-      //   mappings: sourcemap?.mappings,
-      // });
       const [ms] = await sourceMapHelper(inputCode, {
         mock: !enableSourceMap,
       });
-      // enableSourceMap && await ms.trace();
 
       const typeReferences = new Set<string>();
       const fileReferences = new Set<string>();
@@ -147,66 +136,36 @@ export const transform = () => {
         return "export {  }";
       }
 
-      // enableSourceMap
-      //   && console.log(
-      //     `${ms.toString()}\n//# sourceMappingURL=${
-      //       ms.generateMap({ hires: "boundary", includeContent: true }).toUrl()
-      //     }`,
-      //   );
-      let overrideOriginalTextHelper: undefined | ReturnType<typeof getTextHelper> = code === inputCode
-        ? undefined
-        : getTextHelper(inputCode);
       for (let [location, generatedCode] of new NamespaceFinder(parse(chunk.fileName, code)).fix()) {
         const originalCode = code.slice(location.start, location.end);
         if (originalCode === generatedCode) continue;
 
-        console.log({ location, originalCode, generatedCode });
-        if (overrideOriginalTextHelper) {
-          await ms.updateByGenerated(location.start, location.end + 1, generatedCode, {
-            overrideOriginalTextHelper,
-          });
-        } else {
-          ms.update(location.start, location.end, generatedCode);
-          overrideOriginalTextHelper = getTextHelper(inputCode);
-        }
+        ms.update(location.start, location.end, generatedCode);
       }
 
       code = ms.toString();
-      // enableSourceMap
-      //   && console.log(
-      //     `${ms.toString()}\n//# sourceMappingURL=${
-      //       ms.generateMap({ hires: "boundary", includeContent: true }).toUrl()
-      //     }`,
-      //   );
-      overrideOriginalTextHelper = code === inputCode
-        ? undefined
-        : getTextHelper(inputCode);
+      // console.log(
+      //   `${ms.toString()}\n//# sourceMappingURL=${ms.generateMap({ hires: "boundary", includeContent: true }).toUrl()}`,
+      // );
       for (let [location, generatedCode] of new ExportsFinder(parse(chunk.fileName, code)).findExports()) {
         const originalCode = code.slice(location.start, location.end);
         if (originalCode === generatedCode) continue;
 
-        console.log({ location, originalCode, generatedCode });
-        if (overrideOriginalTextHelper) {
-          await ms.updateByGenerated(location.start, location.end + 1, generatedCode, {
-            overrideOriginalTextHelper,
-          });
-        } else {
-          ms.update(location.start, location.end, generatedCode);
-          overrideOriginalTextHelper = getTextHelper(inputCode);
-        }
+        await ms.updateByGenerated(location.start, location.end, generatedCode, {
+          overrideOriginalTextHelper: enableSourceMap ? getTextHelper(inputCode) : undefined,
+        });
       }
       code = ms.toString();
       if (!enableSourceMap) {
         return code;
       }
 
-      // console.log(`${ms.toString()}\n//# sourceMappingURL=${ms.generateMap({ includeContent: true }).toUrl()}`);
+      // console.log(
+      //   `${ms.toString()}\n//# sourceMappingURL=${ms.generateMap({ hires: "boundary", includeContent: true }).toUrl()}`,
+      // );
       return {
         code,
-        map: ms.generateMap({
-          includeContent: true,
-          hires: "boundary",
-        }),
+        map: ms.generateMap({ hires: "boundary" }),
       };
     },
   } satisfies Plugin;

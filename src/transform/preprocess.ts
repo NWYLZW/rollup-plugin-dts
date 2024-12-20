@@ -1,8 +1,6 @@
 import MagicString from "magic-string";
 import ts from "typescript";
 
-import { type MappedPosition, SourceMapConsumer } from "source-map";
-import { type SourceMapHelper, getTextHelper, sourceMapHelper } from "../utils/sourcemap-helper.js";
 import { matchesModifier } from "./astHelpers.js";
 import { UnsupportedSyntaxError } from "./errors.js";
 
@@ -13,7 +11,7 @@ interface PreProcessInput {
 }
 
 interface PreProcessOutput {
-  code: MagicString;
+  ms: MagicString;
   typeReferences: Set<string>;
   fileReferences: Set<string>;
 }
@@ -33,10 +31,10 @@ interface PreProcessOutput {
  * - [ ] Duplicate the identifiers of a namespace `export`, so that renaming does
  *   not break it
  */
-export async function preProcess({ sourceFile }: PreProcessInput): Promise<PreProcessOutput> {
+export function preProcess({ sourceFile }: PreProcessInput): PreProcessOutput {
   const text = sourceFile.getFullText();
 
-  let [ms, { originalTextHelper }] = await sourceMapHelper(text);
+  const ms = new MagicString(text);
 
   /** All the names that are declared in the `SourceFile`. */
   const declaredNames = new Set<string>();
@@ -49,7 +47,6 @@ export async function preProcess({ sourceFile }: PreProcessInput): Promise<PrePr
   /** The ranges that each name covers, for re-ordering. */
   const nameRanges = new Map<string, Array<Range>>();
 
-  const nodeOffsetRef = { value: 0 };
   /**
    * Pass 1:
    *
@@ -96,10 +93,7 @@ export async function preProcess({ sourceFile }: PreProcessInput): Promise<PrePr
         duplicateExports(ms, node);
       }
 
-      await fixModifiers(ms, node, {
-        nodeOffsetRef,
-        originalTextHelper,
-      });
+      fixModifiers(ms, node);
     } else if (ts.isVariableStatement(node)) {
       const { declarations } = node.declarationList;
       // collect all the names, also check if they are exported
@@ -114,10 +108,7 @@ export async function preProcess({ sourceFile }: PreProcessInput): Promise<PrePr
         }
       }
 
-      await fixModifiers(ms, node, {
-        nodeOffsetRef,
-        originalTextHelper,
-      });
+      fixModifiers(ms, node);
 
       // collect the ranges for re-ordering
       if (declarations.length === 1) {
@@ -264,11 +255,8 @@ export async function preProcess({ sourceFile }: PreProcessInput): Promise<PrePr
     ms.remove(start, end);
   }
 
-  // console.log({ mappings: ms.generateMap().mappings });
-  // originalTextHelper && await ms.trace();
-  // console.log(`${ms.toString()}\n//# sourceMappingURL=${ms.generateMap({ includeContent: true }).toUrl()}`);
   return {
-    code: ms,
+    ms,
     typeReferences,
     fileReferences,
   };
@@ -330,18 +318,11 @@ export async function preProcess({ sourceFile }: PreProcessInput): Promise<PrePr
   }
 }
 
-async function fixModifiers(ms: SourceMapHelper, node: ts.Node, {
-  nodeOffsetRef,
-  originalTextHelper,
-}: {
-  nodeOffsetRef: { value: number; };
-  originalTextHelper?: ReturnType<typeof getTextHelper>;
-}) {
+function fixModifiers(ms: MagicString, node: ts.Node) {
   // remove the `export` and `default` modifier, add a `declare` if its missing.
   if (!ts.canHaveModifiers(node)) {
     return;
   }
-  const { value: nodeOffset } = nodeOffsetRef;
   let hasDeclare = false;
   const needsDeclare = ts.isEnumDeclaration(node)
     || ts.isClassDeclaration(node)
@@ -349,46 +330,11 @@ async function fixModifiers(ms: SourceMapHelper, node: ts.Node, {
     || ts.isModuleDeclaration(node)
     || ts.isVariableStatement(node);
 
-  let originalStart: number | undefined;
-  if (originalTextHelper) {
-    const textHelper = getTextHelper(ms.toString());
-    const [
-      startLineAndColumn,
-    ] = [
-      textHelper.getLineAndColumnOfPosition(node.getStart()),
-    ];
-    const consumer = await new SourceMapConsumer(ms.generateMap());
-    const originalStartLineAndColumn = consumer.originalPositionFor({
-      ...startLineAndColumn,
-    }) as MappedPosition;
-    if (originalStartLineAndColumn.line === null || originalStartLineAndColumn.column === null) {
-      throw new Error("Source map is invalid");
-    }
-    originalStart = originalTextHelper?.getPositionOfLineAndColmn(
-      originalStartLineAndColumn.line,
-      originalStartLineAndColumn.column,
-    );
-  }
-
   for (const mod of node.modifiers ?? []) {
     switch (mod.kind) {
       case ts.SyntaxKind.ExportKeyword: // fall through
       case ts.SyntaxKind.DefaultKeyword: {
-        // TODO: be careful about that `+ 1`
-        let [start, end] = [mod.getStart(), mod.getEnd() + 1];
-        if (!originalTextHelper) {
-          ms.remove(start, end);
-          break;
-        }
-        const { value: nodeOffset } = nodeOffsetRef;
-        start -= nodeOffset;
-        end -= nodeOffset;
-        using _ = {
-          [Symbol.dispose]() {
-            nodeOffsetRef.value += end - start;
-          },
-        };
-        await ms.updateByGenerated(start, end, "");
+        ms.remove(mod.getStart(), mod.getEnd() + 1);
         break;
       }
       case ts.SyntaxKind.DeclareKeyword:
@@ -396,13 +342,7 @@ async function fixModifiers(ms: SourceMapHelper, node: ts.Node, {
     }
   }
   if (needsDeclare && !hasDeclare) {
-    const insertDeclare = "declare ";
-    let insertPos = originalStart ?? node.getStart();
-    if (originalTextHelper) {
-      insertPos -= nodeOffset;
-      nodeOffsetRef.value -= insertDeclare.length;
-    }
-    ms.appendRight(insertPos, insertDeclare);
+    ms.appendRight(node.getStart(), "declare ");
   }
 }
 

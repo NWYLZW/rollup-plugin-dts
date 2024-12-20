@@ -1,5 +1,5 @@
 import MagicString, { type SourceMap } from "magic-string";
-import { type MappedPosition, type MappingItem, SourceMapConsumer } from "source-map";
+import { type MappingItem, SourceMapConsumer } from "source-map";
 
 interface ExtendMS {
   trace: () => Promise<void>;
@@ -149,14 +149,19 @@ export const sourceMapHelper = async (text: string, {
       const [
         startLineAndColumn,
         endLineAndColumn,
-        realEndLineAndColumn,
       ] = [
         textHelper.getLineAndColumnOfPosition(start),
         textHelper.getLineAndColumnOfPosition(end),
-        textHelper.getLineAndColumnOfPosition(end - 1),
       ];
+      // console.log({
+      //   start,
+      //   end,
+      //   startLineAndColumn,
+      //   endLineAndColumn,
+      //   code: ms.toString(),
+      // });
 
-      const consumer = await new SourceMapConsumer(ms.generateMap());
+      const consumer = await new SourceMapConsumer(ms.generateMap({ hires: "boundary" }));
       // forEachMS(
       //   consumer,
       //   m => ({
@@ -170,65 +175,118 @@ export const sourceMapHelper = async (text: string, {
       //     }),
       // );
 
-      const originalStartLineAndColumn = consumer.originalPositionFor({
-        ...startLineAndColumn,
-      }) as MappedPosition;
-      if (originalStartLineAndColumn.line === null || originalStartLineAndColumn.column === null) {
-        throw new Error("Source map is invalid");
-      }
-      const originalStart = originalTextHelper.getPositionOfLineAndColmn(
-        originalStartLineAndColumn.line,
-        originalStartLineAndColumn.column,
-      );
+      const mappings: {
+        start?: MappingItem & {
+          generated: number;
+          original: number;
+        };
+        end?: MappingItem & {
+          generated: number;
+          original: number;
+        };
+      } = {};
+      consumer.eachMapping(data => {
+        if (data.generatedLine === null || data.generatedColumn === null) {
+          return;
+        }
 
-      const originalEndLineAndColumn = consumer.originalPositionFor({
-        ...endLineAndColumn,
-        bias: SourceMapConsumer.LEAST_UPPER_BOUND,
-      }) as MappedPosition;
-      if (originalEndLineAndColumn.line === null || originalEndLineAndColumn.column === null) {
-        throw new Error("Source map is invalid");
-      }
-      const originalEnd = originalTextHelper.getPositionOfLineAndColmn(
-        originalEndLineAndColumn.line,
-        originalEndLineAndColumn.column,
-      );
+        if (!mappings.start) {
+          if (
+            data.generatedLine < startLineAndColumn.line
+            || (
+              data.generatedColumn < startLineAndColumn.column
+              && data.generatedLine < startLineAndColumn.line
+            )
+          ) {
+            return;
+          }
 
-      const realOriginalEndLineAndColumn = consumer.originalPositionFor({
-        ...realEndLineAndColumn,
-        bias: SourceMapConsumer.GREATEST_LOWER_BOUND,
-      }) as MappedPosition;
-      if (realOriginalEndLineAndColumn.line === null || realOriginalEndLineAndColumn.column === null) {
-        throw new Error("Source map is invalid");
-      }
+          const all = consumer.allGeneratedPositionsFor({
+            source: data.source,
+            line: data.originalLine,
+            column: data.originalColumn,
+          });
+          if (all.length === 0) {
+            throw new Error("No generated positions found");
+          }
 
-      const generated = {
-        start: consumer.generatedPositionFor(originalStartLineAndColumn),
-        end: consumer.generatedPositionFor(realOriginalEndLineAndColumn),
-      };
+          const startPosition = all[0]!;
+          mappings.start = {
+            name: "",
+            source: data.source,
+            generated: textHelper.getPositionOfLineAndColmn(startPosition.line!, startPosition.column!),
+            generatedLine: startPosition.line!,
+            generatedColumn: startPosition.column!,
+            original: originalTextHelper.getPositionOfLineAndColmn(data.originalLine, data.originalColumn),
+            originalLine: data.originalLine,
+            originalColumn: data.originalColumn,
+          };
+        }
+        if (!mappings.end && mappings.start) {
+          if (
+            data.generatedLine < endLineAndColumn.line
+            || data.generatedColumn < endLineAndColumn.column
+          ) {
+            return;
+          }
 
-      const generatedContent = textHelper.getTextBetween({
-        line: generated.start.line!,
-        column: generated.start.column!,
-      }, {
-        line: generated.end.line!,
-        column: generated.end.lastColumn!,
+          const generated = textHelper.getPositionOfLineAndColmn(
+            data.generatedLine,
+            data.generatedColumn,
+          ) - 1;
+          const generatedLineAndColumn = textHelper.getLineAndColumnOfPosition(generated);
+          const original = originalTextHelper.getPositionOfLineAndColmn(
+            data.originalLine,
+            data.originalColumn,
+          ) - 1;
+          const originalLineAndColumn = originalTextHelper.getLineAndColumnOfPosition(original);
+          mappings.end = {
+            name: "",
+            source: data.source,
+            generated,
+            generatedLine: generatedLineAndColumn.line,
+            generatedColumn: generatedLineAndColumn.column,
+            original,
+            originalLine: originalLineAndColumn.line,
+            originalColumn: originalLineAndColumn.column,
+          };
+        }
       });
+      if (!mappings.start) {
+        throw new Error("No start mapping found");
+      }
+      if (!mappings.end) {
+        const generatedLineAndColumn = textHelper.getLineAndColumnOfPosition(textHelper.raw.length);
+        const originalLineAndColumn = originalTextHelper.getLineAndColumnOfPosition(originalTextHelper.raw.length);
+        mappings.end = {
+          name: "",
+          source: mappings.start.source,
+          generated: textHelper.raw.length,
+          generatedLine: generatedLineAndColumn.line,
+          generatedColumn: generatedLineAndColumn.column,
+          original: originalTextHelper.raw.length,
+          originalLine: originalLineAndColumn.line,
+          originalColumn: originalLineAndColumn.column,
+        };
+      }
 
-      const generaredStart = textHelper.getPositionOfLineAndColmn(generated.start.line!, generated.start.column!);
-      const startInGenerated = start - generaredStart;
-      const endInGenerated = end - generaredStart;
+      const generatedContent = textHelper.raw.slice(mappings.start.generated, mappings.end.generated);
+
+      const startInGenerated = start - mappings.start.generated;
+      const endInGenerated = end - mappings.start.generated;
       const reGeneratedContent = generatedContent.slice(0, startInGenerated)
         + code
         + generatedContent.slice(endInGenerated);
 
       // console.log({
       //   text: textHelper.getTextBetween(start, end),
-      //   content: originalTextHelper.getTextBetween(originalStart, originalEnd),
+      //   content: originalTextHelper.raw.slice(mappings.start.original, mappings.end.original),
+      //
       //   generatedContent,
       //   reGeneratedContent,
       // });
 
-      ms.update(originalStart, originalEnd, reGeneratedContent);
+      ms.update(mappings.start.original, mappings.end.original, reGeneratedContent);
     },
   };
   if (existingMap) {

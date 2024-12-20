@@ -99,7 +99,27 @@ exports[`fixtures > sourcemap > default 2`] = `
 "declare function foo(): string;
 
 export { foo as default };
-//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5kZXguZC50cyIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2luZGV4LnRzIl0sInNvdXJjZXNDb250ZW50IjpbImV4cG9ydCBkZWZhdWx0IGZ1bmN0aW9uIGZvbygpIHtcbiAgcmV0dXJuICdmb28nXG59XG4iXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQU8sT0FBQSxDQUFBLFFBQUEsQ0FBaUIsR0FBRyxDQUFBLENBQUEsQ0FBQSxDQUFBLE1BQUE7OyJ9
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5kZXguZC50cyIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL2luZGV4LnRzIl0sInNvdXJjZXNDb250ZW50IjpbImV4cG9ydCBkZWZhdWx0IGZ1bmN0aW9uIGZvbygpIHtcbiAgcmV0dXJuICdmb28nXG59XG4iXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQXdCLE9BQUEsQ0FBQSxRQUFBLENBQUEsR0FBRyxDQUFBLENBQUEsQ0FBQSxDQUFBLE1BQUE7OyJ9
+"
+`;
+
+exports[`fixtures > sourcemap > export star as 1`] = `
+[
+  "index.d.ts",
+]
+`;
+
+exports[`fixtures > sourcemap > export star as 2`] = `
+"interface A {
+}
+
+type foo_A = A;
+declare namespace foo {
+  export type { foo_A as A };
+}
+
+export { foo };
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5kZXguZC50cyIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc3JjL2V4cG9ydC1zdGFyLWFzL2Zvby50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJleHBvcnQgaW50ZXJmYWNlIEEge31cbiJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiVUFBaUIsQ0FBQyxDQUFBO0FBQUc7Ozs7Ozs7In0=
 "
 `;
 
