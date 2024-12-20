@@ -146,13 +146,15 @@ export const transform = () => {
       // console.log(
       //   `${ms.toString()}\n//# sourceMappingURL=${ms.generateMap({ hires: "boundary", includeContent: true }).toUrl()}`,
       // );
+      let offset = 0;
       for (let [location, generatedCode] of new ExportsFinder(parse(chunk.fileName, code)).findExports()) {
         const originalCode = code.slice(location.start, location.end);
         if (originalCode === generatedCode) continue;
 
-        await ms.updateByGenerated(location.start, location.end, generatedCode, {
+        await ms.updateByGenerated(location.start + offset, location.end + offset, generatedCode, {
           overrideOriginalTextHelper: enableSourceMap ? getTextHelper(inputCode) : undefined,
         });
+        offset += generatedCode.length - originalCode.length;
       }
       code = ms.toString();
       if (!enableSourceMap) {
