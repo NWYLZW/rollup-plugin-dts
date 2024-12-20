@@ -97,7 +97,7 @@ export const sourceMapHelper = async (text: string, {
   sourcemap,
   mock = false,
 }: {
-  sourcemap?: SourceMap;
+  sourcemap?: Omit<SourceMap, "toString" | "toUrl">;
   mock?: boolean;
 } = {}) => {
   const existingMap = !!sourcemap || INLINE_SOURCE_MAP_REGEX.exec(text);
@@ -297,7 +297,7 @@ export const sourceMapHelper = async (text: string, {
       throw new Error("Invalid inline source map");
     }
 
-    let map: SourceMap;
+    let map: Omit<SourceMap, "toString" | "toUrl">;
     if (typeof mapBase64StrOrSourcemap === "string") {
       const mapStr = atob(mapBase64StrOrSourcemap);
       map = JSON.parse(mapStr);
@@ -346,11 +346,24 @@ export const sourceMapHelper = async (text: string, {
         if (prev === undefined || data === undefined) return;
 
         const generatedCode = textHelper.raw.slice(prev.generatedPos, data.generatedPos);
-        if (prev.originalPos === data.originalPos) {
-          ms.appendRight(prev.originalPos, generatedCode);
-          return;
+        const { originalPos: prevOP } = prev;
+        const { originalPos: dataOP } = data;
+        const [line0, line1] = generatedCode.split("\n");
+        if (line0) {
+          if (prevOP === dataOP) {
+            ms.appendRight(prevOP, line0);
+          } else {
+            ms.update(prevOP, dataOP, line0);
+          }
+          ms.update(
+            prevOP + line0.length,
+            prevOP + line0.length + 1,
+            "\n",
+          );
+          if (line1) {
+            ms.appendRight(dataOP, line1);
+          }
         }
-        ms.overwrite(prev.originalPos, data.originalPos, generatedCode);
       },
     );
   } else {
@@ -499,25 +512,26 @@ export const sourceMapHelper = async (text: string, {
       });
     textHelper = getTextHelper(text);
   }
-  return [
-    new Proxy(ms as MagicString & ExtendMS, {
-      get(target, key: string) {
-        if (!["toString"].includes(key) && key in extendMS) {
-          if (mock) {
-            return ({
-              trace() {
-                throw new Error("Mocked MagicString does not support trace");
-              },
-              async updateByGenerated(start, end, code) {
-                ms.update(start, end, code);
-              },
-            } satisfies ExtendMS)[key as keyof ExtendMS];
-          }
-          return extendMS[key as keyof ExtendMS];
+  const extMS = new Proxy(ms as MagicString & ExtendMS, {
+    get(target, key: string) {
+      if (!["toString"].includes(key) && key in extendMS) {
+        if (mock) {
+          return ({
+            trace() {
+              throw new Error("Mocked MagicString does not support trace");
+            },
+            async updateByGenerated(start, end, code) {
+              ms.update(start, end, code);
+            },
+          } satisfies ExtendMS)[key as keyof ExtendMS];
         }
-        return Reflect.get(target, key);
-      },
-    }),
+        return extendMS[key as keyof ExtendMS];
+      }
+      return Reflect.get(target, key);
+    },
+  });
+  return [
+    extMS,
     { textHelper, originalTextHelper },
   ] as const;
 };

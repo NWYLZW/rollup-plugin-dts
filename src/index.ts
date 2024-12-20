@@ -4,6 +4,7 @@ import ts from "typescript";
 import { type Options, type ResolvedOptions, resolveDefaultOptions } from "./options.js";
 import { DTS_EXTENSIONS, createProgram, createPrograms, dts, formatHost, getCompilerOptions } from "./program.js";
 import { transform } from "./transform/index.js";
+import { sourceMapHelper } from "./utils/sourcemap-helper.js";
 
 export type { Options };
 
@@ -173,7 +174,7 @@ const plugin = (options: Options = {}): InputPluginOption => {
           return null;
         };
 
-        const generateDtsFromTs = () => {
+        const generateDtsFromTs = async () => {
           const module = getModule(ctx, id, code);
           if (!module || !module.source || !module.program) return null;
           watchFiles(module);
@@ -205,6 +206,20 @@ const plugin = (options: Options = {}): InputPluginOption => {
               console.error(ts.formatDiagnostics(errors, formatHost));
               this.error("Failed to compile. Check the logs above.");
             }
+          }
+          if (generated.map) {
+            const [ms] = await sourceMapHelper(generated.code!, {
+              sourcemap: {
+                ...generated.map,
+                sourcesContent: [code],
+              },
+            });
+            // console.log(
+            //   `${ms.toString()}\n//# sourceMappingURL=${
+            //     ms.generateMap({ hires: "boundary", includeContent: true }).toUrl()
+            //   }`,
+            // );
+            generated.map = ms.generateMap({ hires: "boundary" });
           }
           // console.log(
           //   `${generated.code}\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,${
