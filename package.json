@@ -8,19 +8,23 @@
     "dts",
     "@types"
   ],
-  "author": "Arpad Borsos <arpad.borsos@googlemail.com>",
+  "author": "YiJie <yijie4188@gmail.com>",
+  "contributors": [
+    "YiJie <yijie4188@gmail.com>",
+    "Arpad Borsos <arpad.borsos@googlemail.com>"
+  ],
   "license": "LGPL-3.0-only",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Swatinem/rollup-plugin-dts.git"
+    "url": "git+https://github.com/NWYLZW/rollup-plugin-dts.git"
   },
   "bugs": {
-    "url": "https://github.com/Swatinem/rollup-plugin-dts/issues"
+    "url": "https://github.com/NWYLZW/rollup-plugin-dts/issues"
   },
   "funding": {
-    "url": "https://github.com/sponsors/Swatinem"
+    "url": "https://github.com/sponsors/NWYLZW"
   },
-  "homepage": "https://github.com/Swatinem/rollup-plugin-dts#readme",
+  "homepage": "https://github.com/NWYLZW/rollup-plugin-dts#readme",
   "engines": {
     "node": ">=16"
   },
