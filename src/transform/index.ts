@@ -73,7 +73,6 @@ export const transform = () => {
     },
 
     async transform(code, fileName) {
-      code = code.replace(/\n\/\/# sourceMappingURL=.+$/s, "\n");
       let sourceFile = parse(fileName, code);
       const { typeReferences, fileReferences, ms } = preProcess({ sourceFile });
       // `sourceFile.fileName` here uses forward slashes

@@ -190,7 +190,7 @@ const plugin = (options: Options = {}): InputPluginOption => {
               if (fileName.endsWith(".map")) {
                 generated.map = JSON.parse(declarationText);
               } else {
-                generated.code = declarationText;
+                generated.code = declarationText.replace(/\n\/\/# sourceMappingURL=.+$/s, "\n");
               }
             },
             undefined, // cancellationToken
@@ -206,6 +206,14 @@ const plugin = (options: Options = {}): InputPluginOption => {
               this.error("Failed to compile. Check the logs above.");
             }
           }
+          // console.log(
+          //   `${generated.code}\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,${
+          //     Buffer.from(JSON.stringify({
+          //       ...generated.map,
+          //       sourcesContent: [code],
+          //     })).toString("base64")
+          //   }`,
+          // );
           return generated;
         };
 
