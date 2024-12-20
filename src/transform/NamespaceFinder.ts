@@ -215,31 +215,31 @@ export class NamespaceFinder {
           switch (type) {
             case "namespace":
               // namespaces may contain both types and values
-              reexportCodes.push(`import ${variableName} = ${localName}`);
+              reexportCodes.push(`import ${variableName} = ${localName};`);
               break;
             case "interface":
             case "type": {
               // an interface is just a type
               const typeParams = renderTypeParams(generics);
-              reexportCodes.push(`type ${variableName}${typeParams.in} = ${localName}${typeParams.out}`);
+              reexportCodes.push(`type ${variableName}${typeParams.in} = ${localName}${typeParams.out};`);
               break;
             }
             case "enum":
             case "class": {
               // enums and classes are both types and values
               const typeParams = renderTypeParams(generics);
-              reexportCodes.push(`type ${variableName}${typeParams.in} = ${localName}${typeParams.out}`);
-              reexportCodes.push(`declare const ${variableName}: typeof ${localName}`);
+              reexportCodes.push(`type ${variableName}${typeParams.in} = ${localName}${typeParams.out};`);
+              reexportCodes.push(`declare const ${variableName}: typeof ${localName};`);
               break;
             }
             default:
               // functions and vars are just values
-              reexportCodes.push(`declare const ${variableName}: typeof ${localName}`);
+              reexportCodes.push(`declare const ${variableName}: typeof ${localName};`);
               break;
           }
         }
       }
-      namespaceCode = reexportCodes.join(";\n") + ";\n";
+      namespaceCode = reexportCodes.join("\n") + "\n";
       if (ns.name) {
         namespaceCode += genNamespaceExport(ns);
       }
