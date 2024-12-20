@@ -225,7 +225,7 @@ export const sourceMapHelper = async (text: string, {
         if (!mappings.end && mappings.start) {
           if (
             data.generatedLine < endLineAndColumn.line
-            || data.generatedColumn < endLineAndColumn.column
+            || data.generatedColumn <= endLineAndColumn.column
           ) {
             return;
           }
