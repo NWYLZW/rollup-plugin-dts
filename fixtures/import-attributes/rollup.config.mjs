@@ -1,14 +1,13 @@
-import dts from 'rollup-plugin-dts'
+import dts from "rollup-plugin-dts";
 
 export default /** @type {import('rollup').RollupOptions} */ ({
-  input: 'src/index.ts',
+  input: "src/index.ts",
   output: {
-    dir: 'dist',
-    format: 'esm',
-    importAttributesKey: 'with'
+    dir: "dist",
+    format: "esm",
   },
   plugins: [
-    dts({ tsconfig: 'tsconfig.json' })
+    dts({ tsconfig: "tsconfig.json" }),
   ],
-  external: ['foo']
-})
+  external: ["foo"],
+});
