@@ -11,7 +11,7 @@ const external = [
   ...Object.keys(pkg.optionalDependencies || {}),
 ];
 
-const config: Array<RollupWatchOptions> = [
+export default [
   {
     input: "./.build/src/index.js",
     output: [
@@ -31,6 +31,4 @@ const config: Array<RollupWatchOptions> = [
     })],
     external,
   },
-];
-
-export default config;
+] satisfies Array<RollupWatchOptions>;
