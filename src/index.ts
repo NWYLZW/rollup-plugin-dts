@@ -110,7 +110,6 @@ const plugin = (options: Options = {}): InputPluginOption => {
       name: "dts",
       api,
       options(options) {
-        const { ctx } = api;
         let { input = [] } = options;
         if (!Array.isArray(input)) {
           input = typeof input === "string" ? [input] : Object.values(input);
@@ -128,14 +127,20 @@ const plugin = (options: Options = {}): InputPluginOption => {
             options.input[name] = filename;
           }
         }
-
-        ctx.programs = createPrograms(
-          Object.values(input),
-          ctx.resolvedOptions.compilerOptions,
-          ctx.resolvedOptions.tsconfig,
-        );
-
         return options;
+      },
+      buildStart: {
+        order: "post",
+        handler: options => {
+          const { ctx } = api;
+          const { input = [] } = options;
+
+          ctx.programs = createPrograms(
+            Object.values(input),
+            ctx.resolvedOptions.compilerOptions,
+            ctx.resolvedOptions.tsconfig,
+          );
+        },
       },
       transform(code, id) {
         const { ctx } = api;

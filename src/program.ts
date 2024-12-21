@@ -20,7 +20,7 @@ const DEFAULT_OPTIONS: ts.CompilerOptions = {
   noEmitOnError: true,
   // Avoid extra work
   checkJs: false,
-  declarationMap: false,
+  declarationMap: true,
   skipLibCheck: true,
   // Ensure TS2742 errors are visible
   preserveSymlinks: true,
@@ -208,7 +208,11 @@ export function createProgram(
   tsconfig?: string,
   overrideProjectReferences?: readonly ts.ProjectReference[],
 ) {
-  const { dtsFiles, projectReferences, compilerOptions } = getCompilerOptions(fileName, overrideOptions, tsconfig);
+  const { dtsFiles, projectReferences, compilerOptions } = getCompilerOptions(
+    fileName,
+    overrideOptions,
+    tsconfig,
+  );
   return ts.createProgram({
     rootNames: [fileName].concat(Array.from(dtsFiles)),
     options: compilerOptions,
@@ -217,7 +221,11 @@ export function createProgram(
   });
 }
 
-export function createPrograms(input: Array<string>, overrideOptions: ts.CompilerOptions, tsconfig?: string) {
+export function createPrograms(
+  input: Array<string>,
+  overrideOptions: ts.CompilerOptions,
+  tsconfig?: string,
+) {
   const programs = [];
   const dtsFiles: Set<string> = new Set();
   let inputs: Array<string> = [];
