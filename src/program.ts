@@ -3,8 +3,8 @@ import ts from "typescript";
 
 import type { DtsPluginContext } from "./api.js";
 
-export const DTS_EXTENSIONS = /\.d\.([cm])?tsx?$/;
-export const dts = ".d.ts";
+export const DTS_EXTENSIONS_REGEXP = /\.d\.([cm])?tsx?$/;
+export const DTS_EXTENSION = ".d.ts";
 
 export const formatHost: ts.FormatDiagnosticsHost = {
   getCurrentDirectory: () => ts.sys.getCurrentDirectory(),
@@ -179,7 +179,7 @@ export function getCompilerOptions(
   let isInclude = fileNames.findIndex((name) => maybeInputs.includes(name)) !== -1;
 
   if (isInclude || forceReturn) {
-    dtsFiles = fileNames.filter((name) => DTS_EXTENSIONS.test(name));
+    dtsFiles = fileNames.filter((name) => DTS_EXTENSIONS_REGEXP.test(name));
     if (errors.length) {
       console.error(ts.formatDiagnostics(errors, formatHost));
       return { dtsFiles, dirName, compilerOptions };
@@ -236,7 +236,7 @@ export function createPrograms(
   let projectReferences: undefined | readonly ts.ProjectReference[] = [];
 
   for (let main of input) {
-    if (DTS_EXTENSIONS.test(main)) {
+    if (DTS_EXTENSIONS_REGEXP.test(main)) {
       continue;
     }
 
@@ -295,7 +295,7 @@ export function getModule(
 ): ResolvedModule | null {
   // Create any `ts.SourceFile` objects on-demand for ".d.ts" modules,
   // but only when there are zero ".ts" entry points.
-  if (!programs.length && DTS_EXTENSIONS.test(fileName)) {
+  if (!programs.length && DTS_EXTENSIONS_REGEXP.test(fileName)) {
     return { code };
   }
 

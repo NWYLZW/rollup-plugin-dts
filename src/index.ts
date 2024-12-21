@@ -5,9 +5,9 @@ import { createApi } from "./api.js";
 import { type Options } from "./options.js";
 import {
   type ResolvedModule,
-  DTS_EXTENSIONS,
+  DTS_EXTENSION,
+  DTS_EXTENSIONS_REGEXP,
   createPrograms,
-  dts,
   formatHost,
   getCompilerOptions,
   getModule,
@@ -84,7 +84,7 @@ const plugin = (options: Options = {}): InputPluginOption => {
         };
 
         const treatTsAsDts = () => {
-          const declarationId = id.replace(TS_EXTENSIONS, dts);
+          const declarationId = id.replace(TS_EXTENSIONS, DTS_EXTENSION);
           const module = getModule(ctx, declarationId, code);
           if (module) {
             watchFiles(module);
@@ -161,7 +161,7 @@ const plugin = (options: Options = {}): InputPluginOption => {
         };
 
         // if it's a .d.ts file, handle it as-is
-        if (DTS_EXTENSIONS.test(id)) return handleDtsFile();
+        if (DTS_EXTENSIONS_REGEXP.test(id)) return handleDtsFile();
 
         // first attempt to treat .ts files as .d.ts files, and otherwise use the typescript compiler to generate the declarations
         return treatTsAsDts() ?? generateDtsFromTs();
