@@ -163,7 +163,6 @@ const plugin = (options: Options = {}): InputPluginOption => {
           const module = getModule(ctx, id, code);
           if (module) {
             watchFiles(module);
-            // return transformPlugin.transform.call(this, module.code, id);
             // TODO sourcemap
             return module.code;
           }
@@ -175,7 +174,6 @@ const plugin = (options: Options = {}): InputPluginOption => {
           const module = getModule(ctx, declarationId, code);
           if (module) {
             watchFiles(module);
-            // return transformPlugin.transform.call(this, module.code, declarationId);
             // TODO sourcemap
             return module.code;
           }
@@ -216,19 +214,27 @@ const plugin = (options: Options = {}): InputPluginOption => {
             }
           }
           if (generated.map) {
-            const [ms] = await sourceMapHelper(generated.code!, {
-              sourcemap: {
-                ...generated.map,
-                sourcesContent: [code],
-              },
-            });
-            // console.log(
-            //   `${ms.toString()}\n//# sourceMappingURL=${
-            //     ms.generateMap({ hires: "boundary", includeContent: true }).toUrl()
-            //   }`,
-            // );
-            generated.map = ms.generateMap({ hires: "boundary" });
+            try {
+              const [ms] = await sourceMapHelper(generated.code!, {
+                sourcemap: {
+                  ...generated.map,
+                  sourcesContent: [code],
+                },
+              });
+              // console.log(
+              //   `${ms.toString()}\n//# sourceMappingURL=${
+              //     ms.generateMap({ hires: "boundary", includeContent: true }).toUrl()
+              //   }`,
+              // );
+              generated.map = ms.generateMap({ hires: "boundary" });
+            } catch (e) {
+              console.warn("Failed to generate source map for", id, e);
+            }
           }
+          api.id2Sourcemap.set(id, {
+            ...generated.map,
+            sourcesContent: [code],
+          });
           // console.log(
           //   `${generated.code}\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,${
           //     Buffer.from(JSON.stringify({

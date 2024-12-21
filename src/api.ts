@@ -1,4 +1,4 @@
-import type { NormalizedInputOptions } from "rollup";
+import type { ExistingRawSourceMap, NormalizedInputOptions } from "rollup";
 import ts from "typescript";
 import { type Options, type ResolvedOptions, resolveDefaultOptions } from "./options.js";
 
@@ -16,6 +16,10 @@ export interface DtsPluginContext {
 
 export interface Api {
   ctx: DtsPluginContext;
+  /**
+   * @internal
+   */
+  id2Sourcemap: Map<string, ExistingRawSourceMap>;
 }
 
 export function createApi(options: Options): Api {
@@ -25,6 +29,7 @@ export function createApi(options: Options): Api {
       programs: [],
       resolvedOptions: resolveDefaultOptions(options),
     },
+    id2Sourcemap: new Map(),
   };
 }
 

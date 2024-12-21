@@ -35,7 +35,6 @@ export const transform = () => {
 
   return {
     name: "dts:transform",
-
     options({ onLog, ...options }) {
       return {
         ...options,
@@ -56,7 +55,6 @@ export const transform = () => {
         },
       };
     },
-
     outputOptions(options) {
       return {
         ...options,
@@ -71,9 +69,8 @@ export const transform = () => {
         strict: false,
       };
     },
-
-    async transform(code, fileName) {
-      let sourceFile = parse(fileName, code);
+    async transform(code, id) {
+      let sourceFile = parse(id, code);
       const { typeReferences, fileReferences, ms } = preProcess({ sourceFile });
       // `sourceFile.fileName` here uses forward slashes
       allTypeReferences.set(sourceFile.fileName, typeReferences);
@@ -87,11 +84,10 @@ export const transform = () => {
         code: newCode,
         map: ms.generateMap({ hires: "boundary" }),
         ast: convert({
-          sourceFile: parse(fileName, newCode),
+          sourceFile: parse(id, newCode),
         }).ast as any,
       };
     },
-
     async renderChunk(inputCode, chunk, options) {
       const enableSourceMap = options.sourcemap !== "hidden" && options.sourcemap !== false;
       const [ms] = await sourceMapHelper(inputCode, {

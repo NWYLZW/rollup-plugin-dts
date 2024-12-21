@@ -1,7 +1,7 @@
 import * as path from "node:path";
 import ts from "typescript";
 
-export const DTS_EXTENSIONS = /\.d\.(c|m)?tsx?$/;
+export const DTS_EXTENSIONS = /\.d\.([cm])?tsx?$/;
 export const dts = ".d.ts";
 
 export const formatHost: ts.FormatDiagnosticsHost = {
