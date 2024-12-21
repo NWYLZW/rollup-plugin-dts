@@ -1,12 +1,12 @@
 import type * as ESTree from "estree";
 import ts from "typescript";
-import { convertExpression, createIdentifier, createProgram, withStartEnd } from "./astHelpers.js";
 import { DeclarationScope } from "./DeclarationScope.js";
+import { convertExpression, createIdentifier, createProgram, withStartEnd } from "./astHelpers.js";
 import { UnsupportedSyntaxError } from "./errors.js";
 
 type ESTreeImports = ESTree.ImportDeclaration["specifiers"];
 
-declare module 'estree' {
+declare module "estree" {
   // https://github.com/estree/estree/blob/master/es2025.md
   interface ImportDeclaration {
     attributes: Array<ImportAttribute>;
@@ -232,7 +232,7 @@ class Transformer {
             type: "ExportAllDeclaration",
             source,
             exported: null,
-            attributes: []
+            attributes: [],
           },
           node,
         ),
@@ -245,7 +245,7 @@ class Transformer {
             type: "ExportAllDeclaration",
             source,
             exported: createIdentifier(node.exportClause.name),
-            attributes: []
+            attributes: [],
           },
           node,
         ),
@@ -264,7 +264,7 @@ class Transformer {
             declaration: null,
             specifiers,
             source,
-            attributes: []
+            attributes: [],
           },
           node,
         ),
@@ -304,10 +304,9 @@ class Transformer {
     }
     const source = convertExpression(node.moduleSpecifier) as any;
 
-    const specifiers: ESTreeImports =
-      node.importClause && node.importClause.namedBindings
-        ? this.convertNamedImportBindings(node.importClause.namedBindings)
-        : [];
+    const specifiers: ESTreeImports = node.importClause && node.importClause.namedBindings
+      ? this.convertNamedImportBindings(node.importClause.namedBindings)
+      : [];
     if (node.importClause && node.importClause.name) {
       specifiers.push({
         type: "ImportDefaultSpecifier",
@@ -318,15 +317,15 @@ class Transformer {
     // const createAttribute = (key: string, value: string) => ({
     //   type: "ImportAttribute",
     //   key: { type: "Literal", value: key },
-    //   value: { type: "Literal", value: value }
-    // })
+    //   value: { type: "Literal", value: value },
+    // });
     this.pushStatement(
       withStartEnd(
         {
           type: "ImportDeclaration",
           specifiers,
           source,
-          attributes: []
+          attributes: [],
         },
         node,
       ),
