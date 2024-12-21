@@ -7,7 +7,7 @@ exports[`fixtures > import attributes 1`] = `
 `;
 
 exports[`fixtures > import attributes 2`] = `
-"export { bar as cjsSubBar } from 'bar' with { external: 'true' };
+"export { bar as externalCjsSubBar } from 'bar' with { external: 'true' };
 export { foo as CJSSub, foo as MJSSub } from 'foo' with { "resolution-mode": 'require' };
 "
 `;

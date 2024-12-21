@@ -2,7 +2,7 @@ import MagicString from "magic-string";
 import ts from "typescript";
 
 import type { ExistingRawSourceMap } from "rollup";
-import { SourceMapConsumer } from "source-map";
+import { type MappedPosition, SourceMapConsumer } from "source-map";
 import { getTextHelper } from "../utils/sourcemap-helper.js";
 import { matchesModifier } from "./astHelpers.js";
 import { UnsupportedSyntaxError } from "./errors.js";
@@ -55,7 +55,17 @@ export async function preProcess({
         || ts.isExportDeclaration(node)
       ) {
         if (node.attributes) continue;
-        const endLineAndCharacter = sourceFile.getLineAndCharacterOfPosition(node.end);
+        const endLineAndCharacter = sourceFile.getLineAndCharacterOfPosition(node.end - 1);
+        const originalEndLineAndColumn = consumer.originalPositionFor({
+          line: endLineAndCharacter.line + 1,
+          column: endLineAndCharacter.character,
+        }) as MappedPosition;
+        if (originalEndLineAndColumn.line === null || originalEndLineAndColumn.column === null) continue;
+        const start = originalTextHelper.getPositionOfLineAndColmn(
+          originalEndLineAndColumn.line,
+          originalEndLineAndColumn.column,
+        );
+
         const nextLineOriginalEndLineAndColumn = consumer.originalPositionFor({
           line: endLineAndCharacter.line + 2,
           column: 0,
@@ -69,12 +79,9 @@ export async function preProcess({
             nextLineOriginalEndLineAndColumn.column,
           ) - 1;
         }
-        const originalText = originalTextHelper.getTextBetween({
-          line: endLineAndCharacter.line + 1,
-          column: endLineAndCharacter.character,
-        }, end);
+        const originalText = originalTextHelper.getTextBetween(start, end);
         if (originalText === ";") continue;
-        ms.update(node.end - 1, node.end, ` ${originalText}`);
+        ms.update(node.end - 1, node.end, originalText);
       }
     }
   }
