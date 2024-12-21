@@ -17,7 +17,7 @@ export class ExportsFinder {
   private readonly DEBUG = !!process.env.DTS_EXPORTS_FIXER_DEBUG;
   constructor(private readonly source: ts.SourceFile) {}
 
-  public findExports() {
+  public run() {
     const { rawExports, values, types } = this.getExportsAndLocals();
     return rawExports
       .map(rawExport => {

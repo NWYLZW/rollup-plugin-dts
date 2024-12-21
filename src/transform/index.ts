@@ -1,6 +1,8 @@
 import * as path from "node:path";
+
 import type { Plugin } from "rollup";
 import ts from "typescript";
+
 import { type Api, useDtsApi } from "../api.js";
 import { getTextHelper, sourceMapHelper } from "../utils/sourcemap-helper.js";
 import { ExportsFinder } from "./ExportsFinder.js";
@@ -140,7 +142,7 @@ export const transform = () => {
         return "export {  }";
       }
 
-      for (let [location, generatedCode] of new NamespaceFinder(parse(chunk.fileName, code)).fix()) {
+      for (let [location, generatedCode] of new NamespaceFinder(parse(chunk.fileName, code)).run()) {
         const originalCode = code.slice(location.start, location.end);
         if (originalCode === generatedCode) continue;
 
@@ -152,7 +154,7 @@ export const transform = () => {
       //   `${ms.toString()}\n//# sourceMappingURL=${ms.generateMap({ hires: "boundary", includeContent: true }).toUrl()}`,
       // );
       let offset = 0;
-      for (let [location, generatedCode] of new ExportsFinder(parse(chunk.fileName, code)).findExports()) {
+      for (let [location, generatedCode] of new ExportsFinder(parse(chunk.fileName, code)).run()) {
         const originalCode = code.slice(location.start, location.end);
         if (originalCode === generatedCode) continue;
 

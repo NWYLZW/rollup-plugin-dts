@@ -200,7 +200,7 @@ export class NamespaceFinder {
     return { namespaces, itemTypes };
   }
 
-  public fix() {
+  public run() {
     const { namespaces, itemTypes } = this.findNamespaces();
 
     const namespaceCodes: Array<[Namespace["location"], string]> = [];
