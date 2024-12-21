@@ -12,6 +12,19 @@ export { foo as CJSSub, foo as MJSSub } from 'foo' with { "resolution-mode": 're
 "
 `;
 
+exports[`fixtures > import resource 1`] = `
+[
+  "index.d.ts",
+]
+`;
+
+exports[`fixtures > import resource 2`] = `
+"declare const classname: string;
+
+export { classname };
+"
+`;
+
 exports[`fixtures > monorepo 1`] = `
 [
   "index.d.ts",

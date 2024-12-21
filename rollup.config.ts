@@ -26,7 +26,10 @@ const config: Array<RollupWatchOptions> = [
       { file: pkg.exports.import.replace(/\.mjs$/, ".d.mts") },
       { file: pkg.exports.require.replace(/\.cjs$/, ".d.cts") },
     ],
-    plugins: [dts()],
+    plugins: [dts({
+      tsconfig: "./tsconfig.build.json",
+    })],
+    external,
   },
 ];
 

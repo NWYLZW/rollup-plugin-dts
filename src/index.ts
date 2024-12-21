@@ -1,12 +1,15 @@
+import fs from "node:fs/promises";
 import * as path from "node:path";
+
 import type { InputPluginOption } from "rollup";
 import ts from "typescript";
+
 import { createApi } from "./api.js";
 import { type Options } from "./options.js";
 import {
   type ResolvedModule,
-  DTS_EXTENSION,
   DTS_EXTENSIONS_REGEXP,
+  TS_EXTENSIONS_REGEXP,
   createPrograms,
   formatHost,
   getCompilerOptions,
@@ -14,8 +17,6 @@ import {
 } from "./program.js";
 import { transform } from "./transform/index.js";
 import { sourceMapHelper } from "./utils/sourcemap-helper.js";
-
-const TS_EXTENSIONS = /\.([cm]?[tj]sx?)$/;
 
 const plugin = (options: Options = {}): InputPluginOption => {
   const api = createApi(options);
@@ -55,116 +56,6 @@ const plugin = (options: Options = {}): InputPluginOption => {
             ctx.resolvedOptions.tsconfig,
           );
         },
-      },
-      transform(code, id) {
-        const { ctx } = api;
-        if (!TS_EXTENSIONS.test(id)) {
-          return null;
-        }
-
-        const watchFiles = (module: ResolvedModule) => {
-          if (module.program) {
-            const sourceDirectory = path.dirname(id);
-            const sourceFilesInProgram = module.program
-              .getSourceFiles()
-              .map((sourceFile) => sourceFile.fileName)
-              .filter((fileName) => fileName.startsWith(sourceDirectory));
-            sourceFilesInProgram.forEach(this.addWatchFile);
-          }
-        };
-
-        const handleDtsFile = () => {
-          const module = getModule(ctx, id, code);
-          if (module) {
-            watchFiles(module);
-            // TODO sourcemap
-            return module.code;
-          }
-          return null;
-        };
-
-        const treatTsAsDts = () => {
-          const declarationId = id.replace(TS_EXTENSIONS, DTS_EXTENSION);
-          const module = getModule(ctx, declarationId, code);
-          if (module) {
-            watchFiles(module);
-            // TODO sourcemap
-            return module.code;
-          }
-          return null;
-        };
-
-        const generateDtsFromTs = async () => {
-          const module = getModule(ctx, id, code);
-          if (!module || !module.source || !module.program) return null;
-          watchFiles(module);
-
-          let generated!: {
-            code?: string;
-            map?: any;
-            ast?: any;
-          };
-          const { emitSkipped, diagnostics } = module.program.emit(
-            module.source,
-            (fileName, declarationText) => {
-              if (generated === undefined) generated = {};
-              if (fileName.endsWith(".map")) {
-                generated.map = JSON.parse(declarationText);
-              } else {
-                generated.code = declarationText.replace(/\n\/\/# sourceMappingURL=.+$/s, "\n");
-              }
-            },
-            undefined, // cancellationToken
-            true, // emitOnlyDtsFiles
-            undefined, // customTransformers
-            // @ts-ignore This is a private API for workers, should be safe to use as TypeScript Playground has used it for a long time.
-            true, // forceDtsEmit
-          );
-          if (emitSkipped) {
-            const errors = diagnostics.filter((diag) => diag.category === ts.DiagnosticCategory.Error);
-            if (errors.length) {
-              console.error(ts.formatDiagnostics(errors, formatHost));
-              this.error("Failed to compile. Check the logs above.");
-            }
-          }
-          api.id2Sourcemap.set(id, {
-            ...generated.map,
-            sourcesContent: [code],
-          });
-          if (generated.map) {
-            try {
-              const [ms] = await sourceMapHelper(generated.code!, {
-                sourcemap: {
-                  ...generated.map,
-                  sourcesContent: [code],
-                },
-              });
-              // console.log(
-              //   `${ms.toString()}\n//# sourceMappingURL=${
-              //     ms.generateMap({ hires: "boundary", includeContent: true }).toUrl()
-              //   }`,
-              // );
-              generated.map = ms.generateMap({ hires: "boundary" });
-            } catch (e) {
-              console.warn("Failed to generate source map for", id, e);
-            }
-          }
-          // console.log(
-          //   `${generated.code}\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,${
-          //     Buffer.from(JSON.stringify({
-          //       ...generated.map,
-          //       sourcesContent: [code],
-          //     })).toString("base64")
-          //   }`,
-          // );
-          return generated;
-        };
-
-        // if it's a .d.ts file, handle it as-is
-        if (DTS_EXTENSIONS_REGEXP.test(id)) return handleDtsFile();
-
-        // first attempt to treat .ts files as .d.ts files, and otherwise use the typescript compiler to generate the declarations
-        return treatTsAsDts() ?? generateDtsFromTs();
       },
       resolveId: {
         order: "post",
@@ -210,6 +101,120 @@ const plugin = (options: Options = {}): InputPluginOption => {
             return { id: path.resolve(resolvedModule.resolvedFileName) };
           }
         },
+      },
+      async transform(inputCode, id) {
+        if (!TS_EXTENSIONS_REGEXP.test(id)) return;
+
+        const rollup = this;
+        const { ctx } = api;
+
+        const maybeIds: string[] = [];
+        if (DTS_EXTENSIONS_REGEXP.test(id)) {
+          maybeIds.push(id);
+        } else {
+          maybeIds.push(id.replace(TS_EXTENSIONS_REGEXP, ".d.$1ts"));
+          maybeIds.push(id.replace(TS_EXTENSIONS_REGEXP, ".d.ts"));
+          maybeIds.push(id.replace(TS_EXTENSIONS_REGEXP, ".d.cts"));
+          maybeIds.push(id.replace(TS_EXTENSIONS_REGEXP, ".d.mts"));
+        }
+        for (const maybeId of maybeIds) {
+          const module = getModule(ctx, maybeId, inputCode);
+          if (!module || !module.source) continue;
+
+          watchFiles(module);
+          const { code, source } = module;
+          const { fileName } = source;
+          const mapFileName = fileName + ".map";
+          const cacheSourcemap = api.id2Sourcemap.get(mapFileName);
+          if (cacheSourcemap) {
+            return {
+              code,
+              map: cacheSourcemap,
+            };
+          }
+          const mapStr = await fs.readFile(mapFileName, "utf8").catch(() => undefined);
+          const map = mapStr ? JSON.parse(mapStr) : undefined;
+          api.id2Sourcemap.set(mapFileName, map);
+          return {
+            map,
+            code,
+          };
+        }
+
+        const module = getModule(ctx, id, inputCode);
+        if (!module || !module.source || !module.program) return null;
+        watchFiles(module);
+
+        let generated!: {
+          code?: string;
+          map?: any;
+          ast?: any;
+        };
+        const { emitSkipped, diagnostics } = module.program.emit(
+          module.source,
+          (fileName, declarationText) => {
+            if (generated === undefined) generated = {};
+            if (fileName.endsWith(".map")) {
+              generated.map = JSON.parse(declarationText);
+            } else {
+              generated.code = declarationText.replace(/\n\/\/# sourceMappingURL=.+$/s, "\n");
+            }
+          },
+          undefined, // cancellationToken
+          true, // emitOnlyDtsFiles
+          undefined, // customTransformers
+          // @ts-ignore This is a private API for workers, should be safe to use as TypeScript Playground has used it for a long time.
+          true, // forceDtsEmit
+        );
+        if (emitSkipped) {
+          const errors = diagnostics.filter((diag) => diag.category === ts.DiagnosticCategory.Error);
+          if (errors.length) {
+            console.error(ts.formatDiagnostics(errors, formatHost));
+            this.error("Failed to compile. Check the logs above.");
+          }
+        }
+        api.id2Sourcemap.set(id, {
+          ...generated.map,
+          sourcesContent: [inputCode],
+        });
+        if (generated.map) {
+          try {
+            const [ms] = await sourceMapHelper(generated.code!, {
+              sourcemap: {
+                ...generated.map,
+                sourcesContent: [inputCode],
+              },
+            });
+            // console.log(
+            //   `${ms.toString()}\n//# sourceMappingURL=${
+            //     ms.generateMap({ hires: "boundary", includeContent: true }).toUrl()
+            //   }`,
+            // );
+            generated.map = ms.generateMap({ hires: "boundary" });
+          } catch (e) {
+            console.warn("Failed to generate source map for", id, e);
+          }
+        }
+        // console.log(
+        //   `${generated.code}\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,${
+        //     Buffer.from(JSON.stringify({
+        //       ...generated.map,
+        //       sourcesContent: [code],
+        //     })).toString("base64")
+        //   }`,
+        // );
+        return generated;
+
+        function watchFiles(module: ResolvedModule) {
+          if (!module.program) return;
+
+          const sourceDirectory = path.dirname(id);
+          const sourceFilesInProgram = module.program
+            .getSourceFiles()
+            .map((sourceFile) => sourceFile.fileName)
+            .filter((fileName) => fileName.startsWith(sourceDirectory));
+          sourceFilesInProgram.forEach(rollup.addWatchFile);
+        }
       },
     },
     transform(),

@@ -3,8 +3,9 @@ import ts from "typescript";
 
 import type { DtsPluginContext } from "./api.js";
 
-export const DTS_EXTENSIONS_REGEXP = /\.d\.([cm])?tsx?$/;
-export const DTS_EXTENSION = ".d.ts";
+export const TS_EXTENSIONS_REGEXP = /\.([cm]?)[tj]sx?$/;
+
+export const DTS_EXTENSIONS_REGEXP = /\.d(\.[^.]+)?\.([cm])?ts$/;
 
 export const formatHost: ts.FormatDiagnosticsHost = {
   getCurrentDirectory: () => ts.sys.getCurrentDirectory(),
@@ -121,60 +122,54 @@ export function getCompilerOptions(
   }
 
   const maybeInputs = [input];
-  if (!/\/index\.[cm]?tsx?$/.test(input)) {
-    maybeInputs.push(
-      input + "/index.ts",
-      input + "/index.cts",
-      input + "/index.mts",
-      input + "/index.tsx",
-    );
-  }
-  if (!/\/index\.[cm]?jsx?$/.test(input)) {
-    maybeInputs.push(
-      input + "/index.js",
-      input + "/index.cjs",
-      input + "/index.mjs",
-      input + "/index.jsx",
-    );
-  }
-  if (!/\/index\.d\.ts$/.test(input)) {
-    maybeInputs.push(input + "/index.d.ts");
-  }
-  if (!/\.[cm]?tsx?$/.test(input)) {
-    maybeInputs.push(
-      input + ".ts",
-      input + ".tsx",
-      input + ".cts",
-      input + ".ctsx",
-      input + ".mts",
-      input + ".mtsx",
-    );
-  }
-  if (/\.[cm]?jsx?$/.test(input)) {
-    const noSuffixInput = input.replace(/\.[cm]?jsx?$/, "");
-    maybeInputs.push(
-      noSuffixInput + ".ts",
-      noSuffixInput + ".tsx",
-      noSuffixInput + ".cts",
-      noSuffixInput + ".ctsx",
-      noSuffixInput + ".mts",
-      noSuffixInput + ".mtsx",
-      noSuffixInput + ".d.ts",
-      noSuffixInput + ".d.cts",
-      noSuffixInput + ".d.mts",
-    );
+  if (TS_EXTENSIONS_REGEXP.test(input)) {
+    if (!DTS_EXTENSIONS_REGEXP.test(input)) {
+      if (!/\/index\.[cm]?[jt]sx?$/.test(input)) {
+        maybeInputs.push(
+          input + "/index.ts",
+          input + "/index.cts",
+          input + "/index.mts",
+          input + "/index.tsx",
+          input + "/index.js",
+          input + "/index.cjs",
+          input + "/index.mjs",
+          input + "/index.jsx",
+        );
+      }
+      if (!/\/index\.d\.ts$/.test(input) && !/\/index\.ts$/.test(input)) {
+        maybeInputs.push(
+          input + "/index.d.ts",
+        );
+      }
+      if (!/\.[cm]?tsx?$/.test(input)) {
+        maybeInputs.push(
+          input + ".ts",
+          input + ".tsx",
+          input + ".cts",
+          input + ".ctsx",
+          input + ".mts",
+          input + ".mtsx",
+        );
+      }
+      if (/\.[cm]?jsx?$/.test(input)) {
+        maybeInputs.push(
+          input.replace(/\.([cm])?jsx?$/, ".d.$1ts"),
+          input.replace(/\.([cm])?js(x)?$/, ".$1ts$2"),
+        );
+      }
+    }
   } else {
-    maybeInputs.push(
-      input + ".js",
-      input + ".jsx",
-      input + ".cjs",
-      input + ".cjsx",
-      input + ".mjs",
-      input + ".mjsx",
-    );
-  }
-  if (!/\.d\.ts$/.test(input)) {
+    // https://www.typescriptlang.org/docs/handbook/modules/theory.html#the-role-of-declaration-files
+    // Declaration file extension .d.*.ts
+    // JavaScript file extension 	.*
+    maybeInputs.push(input.replace(/\.([^.]+)$/, ".d.$1.ts"));
+    // if not found file which is standard declaration file rule, try to find other declaration file rule
     maybeInputs.push(input + ".d.ts");
+    maybeInputs.push(input + ".d.cts");
+    maybeInputs.push(input + ".d.mts");
+    maybeInputs.push(input + "/index.d.ts");
+    maybeInputs.push(input + "/index.d.cts");
+    maybeInputs.push(input + "/index.d.mts");
   }
   let isInclude = fileNames.findIndex((name) => maybeInputs.includes(name)) !== -1;
 

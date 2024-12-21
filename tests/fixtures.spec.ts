@@ -66,6 +66,7 @@ describe("fixtures", () => {
   test.concurrent("project with references", genBuild("project-with-references").run);
   test.concurrent("monorepo", genBuild("monorepo").run);
   test.concurrent("import attributes", genBuild("import-attributes").run);
+  test.concurrent("import resource", genBuild("import-resource").run);
   describe("sourcemap", () => {
     const sourcemapBuild = genBuild("sourcemap");
     beforeAll(sourcemapBuild.before);
