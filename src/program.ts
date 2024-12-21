@@ -1,6 +1,8 @@
 import * as path from "node:path";
 import ts from "typescript";
 
+import type { DtsPluginContext } from "./api.js";
+
 export const DTS_EXTENSIONS = /\.d\.([cm])?tsx?$/;
 export const dts = ".d.ts";
 
@@ -276,4 +278,84 @@ export function createPrograms(
   }
 
   return programs;
+}
+
+export interface ResolvedModule {
+  code: string;
+  source?: ts.SourceFile;
+  program?: ts.Program;
+}
+
+const refPrograms = new Map<string, ts.Program>();
+
+export function getModule(
+  { entries, programs, resolvedOptions: { compilerOptions, tsconfig } }: DtsPluginContext,
+  fileName: string,
+  code: string,
+): ResolvedModule | null {
+  // Create any `ts.SourceFile` objects on-demand for ".d.ts" modules,
+  // but only when there are zero ".ts" entry points.
+  if (!programs.length && DTS_EXTENSIONS.test(fileName)) {
+    return { code };
+  }
+
+  const isEntry = entries.includes(fileName);
+  // Rollup doesn't tell you the entry point of each module in the bundle,
+  // so we need to ask every TypeScript program for the given filename.
+  let existingProgram = programs.find((p) => {
+    // Entry points may be in the other entry source files, but it can't emit from them.
+    // So we should find the program about the entry point which is the root files.
+    if (isEntry) {
+      return p.getRootFileNames().includes(fileName);
+    } else {
+      const sourceFile = p.getSourceFile(fileName);
+      if (sourceFile && p.isSourceFileFromExternalLibrary(sourceFile)) {
+        return false;
+      }
+      return !!sourceFile;
+    }
+  });
+  existingProgram?.getResolvedProjectReferences()?.forEach(ref => {
+    if (ref === undefined || ref.commandLine === undefined) return;
+
+    const { commandLine, sourceFile: tsconfigSourceFile } = ref;
+    let program = refPrograms.get(tsconfigSourceFile.fileName);
+    if (!program) {
+      program = ts.createProgram({
+        rootNames: commandLine.fileNames,
+        options: commandLine.options,
+        host: ts.createCompilerHost(commandLine.options, true),
+        projectReferences: commandLine.projectReferences,
+      });
+    }
+    refPrograms.set(tsconfigSourceFile.fileName, program);
+
+    const sourceFile = program.getSourceFile(fileName);
+    if (!sourceFile || sourceFile && program.isSourceFileFromExternalLibrary(sourceFile)) {
+      return;
+    }
+    existingProgram = program;
+  });
+  if (existingProgram) {
+    // we know this exists b/c of the .filter above, so this non-null assertion is safe
+    const source = existingProgram.getSourceFile(fileName)!;
+    return {
+      code: source?.getFullText(),
+      source,
+      program: existingProgram,
+    };
+  } else if (ts.sys.fileExists(fileName)) {
+    const newProgram = createProgram(fileName, compilerOptions, tsconfig);
+    programs.push(newProgram);
+    // we created hte program from this fileName, so the source file must exist :P
+    const source = newProgram.getSourceFile(fileName)!;
+    return {
+      code: source?.getFullText(),
+      source,
+      program: newProgram,
+    };
+  } else {
+    // the file isn't part of an existing program and doesn't exist on disk
+    return null;
+  }
 }
