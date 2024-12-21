@@ -1,6 +1,7 @@
 import * as path from "node:path";
 import type { Plugin } from "rollup";
 import ts from "typescript";
+import { type Api, useDtsApi } from "../api.js";
 import { getTextHelper, sourceMapHelper } from "../utils/sourcemap-helper.js";
 import { ExportsFinder } from "./ExportsFinder.js";
 import { NamespaceFinder } from "./NamespaceFinder.js";
@@ -33,8 +34,12 @@ export const transform = () => {
   const allTypeReferences = new Map<string, Set<string>>();
   const allFileReferences = new Map<string, Set<string>>();
 
+  let api!: Api;
   return {
     name: "dts:transform",
+    buildStart(options) {
+      api = useDtsApi(options);
+    },
     options({ onLog, ...options }) {
       return {
         ...options,
@@ -70,8 +75,12 @@ export const transform = () => {
       };
     },
     async transform(code, id) {
+      const sourcemap = api.id2Sourcemap.get(id);
       let sourceFile = parse(id, code);
-      const { typeReferences, fileReferences, ms } = preProcess({ sourceFile });
+      const { typeReferences, fileReferences, ms } = await preProcess({
+        sourceFile,
+        sourcemap,
+      });
       // `sourceFile.fileName` here uses forward slashes
       allTypeReferences.set(sourceFile.fileName, typeReferences);
       allFileReferences.set(sourceFile.fileName, fileReferences);

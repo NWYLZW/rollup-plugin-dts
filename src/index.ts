@@ -127,6 +127,10 @@ const plugin = (options: Options = {}): InputPluginOption => {
               this.error("Failed to compile. Check the logs above.");
             }
           }
+          api.id2Sourcemap.set(id, {
+            ...generated.map,
+            sourcesContent: [code],
+          });
           if (generated.map) {
             try {
               const [ms] = await sourceMapHelper(generated.code!, {
@@ -145,10 +149,6 @@ const plugin = (options: Options = {}): InputPluginOption => {
               console.warn("Failed to generate source map for", id, e);
             }
           }
-          api.id2Sourcemap.set(id, {
-            ...generated.map,
-            sourcesContent: [code],
-          });
           // console.log(
           //   `${generated.code}\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,${
           //     Buffer.from(JSON.stringify({

@@ -273,6 +273,24 @@ class Transformer {
   }
 
   convertImportDeclaration(node: ts.ImportDeclaration | ts.ImportEqualsDeclaration) {
+    const attributes: ESTree.ImportAttribute[] = [];
+    if ("attributes" in node) {
+      node.attributes?.forEachChild(node => {
+        const attr = node as unknown as ts.ImportAttribute;
+        attributes.push({
+          type: "ImportAttribute",
+          key: {
+            type: "Literal",
+            value: attr.name.text,
+          },
+          value: {
+            type: "Literal",
+            // @ts-ignore
+            value: attr.value.text,
+          },
+        });
+      });
+    }
     if (ts.isImportEqualsDeclaration(node)) {
       if (ts.isEntityName(node.moduleReference)) {
         const scope = this.createDeclaration(node, node.name);
@@ -294,7 +312,7 @@ class Transformer {
                 local: createIdentifier(node.name),
               },
             ],
-            attributes: [],
+            attributes,
             source: convertExpression(node.moduleReference.expression) as any,
           },
           node,
@@ -314,18 +332,13 @@ class Transformer {
       });
     }
 
-    // const createAttribute = (key: string, value: string) => ({
-    //   type: "ImportAttribute",
-    //   key: { type: "Literal", value: key },
-    //   value: { type: "Literal", value: value },
-    // });
     this.pushStatement(
       withStartEnd(
         {
           type: "ImportDeclaration",
           specifiers,
           source,
-          attributes: [],
+          attributes,
         },
         node,
       ),

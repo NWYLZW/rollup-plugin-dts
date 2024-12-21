@@ -14,7 +14,8 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "paths": {
-      "bar": ["bar"]
+      "bar": ["bar"],
+      "foo": ["foo"]
     }
   },
   "include": ["src"]

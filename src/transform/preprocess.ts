@@ -1,14 +1,13 @@
 import MagicString from "magic-string";
 import ts from "typescript";
 
+import type { ExistingRawSourceMap } from "rollup";
+import { SourceMapConsumer } from "source-map";
+import { getTextHelper } from "../utils/sourcemap-helper.js";
 import { matchesModifier } from "./astHelpers.js";
 import { UnsupportedSyntaxError } from "./errors.js";
 
 type Range = [start: number, end: number];
-
-interface PreProcessInput {
-  sourceFile: ts.SourceFile;
-}
 
 interface PreProcessOutput {
   ms: MagicString;
@@ -31,10 +30,54 @@ interface PreProcessOutput {
  * - [ ] Duplicate the identifiers of a namespace `export`, so that renaming does
  *   not break it
  */
-export function preProcess({ sourceFile }: PreProcessInput): PreProcessOutput {
-  const text = sourceFile.getFullText();
+export async function preProcess({
+  sourceFile,
+  sourcemap,
+}: {
+  sourceFile: ts.SourceFile;
+  sourcemap?: ExistingRawSourceMap;
+}): Promise<PreProcessOutput> {
+  const ms = new MagicString(sourceFile.getFullText());
 
-  const ms = new MagicString(text);
+  if (sourcemap) {
+    const consumer = await new SourceMapConsumer({
+      file: ".",
+      ...sourcemap,
+    });
+    const original = consumer.sourcesContent[0]!;
+    const originalTextHelper = getTextHelper(original);
+    /**
+     * 根据 sourcemap 还原原本在 import、dynamic import 或者 export 中的 import attributes
+     */
+    for (const node of sourceFile.statements) {
+      if (
+        ts.isImportDeclaration(node)
+        || ts.isExportDeclaration(node)
+      ) {
+        if (node.attributes) continue;
+        const endLineAndCharacter = sourceFile.getLineAndCharacterOfPosition(node.end);
+        const nextLineOriginalEndLineAndColumn = consumer.originalPositionFor({
+          line: endLineAndCharacter.line + 2,
+          column: 0,
+        });
+        let end: number;
+        if (nextLineOriginalEndLineAndColumn.line === null || nextLineOriginalEndLineAndColumn.column === null) {
+          end = originalTextHelper.raw.length - 1;
+        } else {
+          end = originalTextHelper.getPositionOfLineAndColmn(
+            nextLineOriginalEndLineAndColumn.line,
+            nextLineOriginalEndLineAndColumn.column,
+          ) - 1;
+        }
+        const originalText = originalTextHelper.getTextBetween({
+          line: endLineAndCharacter.line + 1,
+          column: endLineAndCharacter.character,
+        }, end);
+        if (originalText === ";") continue;
+        ms.update(node.end - 1, node.end, ` ${originalText}`);
+      }
+    }
+  }
 
   /** All the names that are declared in the `SourceFile`. */
   const declaredNames = new Set<string>();

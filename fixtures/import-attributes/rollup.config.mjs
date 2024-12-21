@@ -5,9 +5,18 @@ export default /** @type {import('rollup').RollupOptions} */ ({
   output: {
     dir: "dist",
     format: "esm",
+    importAttributesKey: "with",
   },
   plugins: [
     dts({ tsconfig: "tsconfig.json" }),
+    {
+      name: "import-attributes-exetrnal",
+      resolveId(id, __, { attributes }) {
+        if (attributes.external === "true") {
+          return { id, external: true };
+        }
+      },
+    },
   ],
   external: ["foo"],
 });
