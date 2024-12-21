@@ -1,7 +1,8 @@
 import * as path from "node:path";
 import type { InputPluginOption } from "rollup";
 import ts from "typescript";
-import { type Options, type ResolvedOptions, resolveDefaultOptions } from "./options.js";
+import { createApi } from "./api.js";
+import { type Options, type ResolvedOptions } from "./options.js";
 import { DTS_EXTENSIONS, createProgram, createPrograms, dts, formatHost, getCompilerOptions } from "./program.js";
 import { transform } from "./transform/index.js";
 import { sourceMapHelper } from "./utils/sourcemap-helper.js";
@@ -103,12 +104,13 @@ function getModule(
 }
 
 const plugin = (options: Options = {}): InputPluginOption => {
-  const ctx: DtsPluginContext = { entries: [], programs: [], resolvedOptions: resolveDefaultOptions(options) };
-
+  const api = createApi(options);
   return [
     {
       name: "dts",
+      api,
       options(options) {
+        const { ctx } = api;
         let { input = [] } = options;
         if (!Array.isArray(input)) {
           input = typeof input === "string" ? [input] : Object.values(input);
@@ -136,6 +138,7 @@ const plugin = (options: Options = {}): InputPluginOption => {
         return options;
       },
       transform(code, id) {
+        const { ctx } = api;
         if (!TS_EXTENSIONS.test(id)) {
           return null;
         }
@@ -241,6 +244,8 @@ const plugin = (options: Options = {}): InputPluginOption => {
       resolveId: {
         order: "post",
         handler(source, importer) {
+          const { ctx } = api;
+
           if (!importer) {
             // store the entry point, because we need to know which program to add the file
             ctx.entries.push(path.resolve(source));
@@ -287,3 +292,5 @@ const plugin = (options: Options = {}): InputPluginOption => {
 };
 
 export { plugin as default, plugin as dts };
+
+export { type Api, useDtsApi } from "./api.js";
