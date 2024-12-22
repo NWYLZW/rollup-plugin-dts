@@ -1,4 +1,17 @@
+import type { PluginContext, RenderedChunk } from "rollup";
 import type ts from "typescript";
+
+export const moduleSymbol = Symbol();
+
+export const globalSymbol = Symbol();
+
+export const namespaceSymbol = Symbol();
+
+export type Path =
+  | string
+  | [typeof moduleSymbol, string]
+  | [typeof globalSymbol]
+  | [typeof namespaceSymbol, ...[string, ...string[]]];
 
 export interface Options {
   /**
@@ -18,6 +31,24 @@ export interface Options {
    * Path to tsconfig.json, by default, will try to load 'tsconfig.json'
    */
   tsconfig?: string;
+  /**
+   * @see https://jsdoc.app/
+   * @see https://tsdoc.org/
+   * @see https://github.com/microsoft/tsdoc/issues/21 microsoft/tsdoc#21
+   */
+  jsdocExplorer?: (
+    this: PluginContext,
+    jsdoc: ts.JSDoc,
+    context: {
+      ts: typeof ts;
+      input: string | null;
+      output: string;
+      paths: Path[];
+      chunk: RenderedChunk;
+      sourceFile: ts.SourceFile;
+      stopRecursive: () => void;
+    },
+  ) => void | Promise<void>;
 }
 
 export function resolveDefaultOptions(options: Options) {

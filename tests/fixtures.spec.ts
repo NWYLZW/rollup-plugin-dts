@@ -67,6 +67,7 @@ describe("fixtures", () => {
   test.concurrent("monorepo", genBuild("monorepo").run);
   test.concurrent("import attributes", genBuild("import-attributes").run);
   test.concurrent("import resource", genBuild("import-resource").run);
+  test.concurrent("jsdoc explorer", genBuild("jsdoc-explorer").run);
   describe("sourcemap", () => {
     const sourcemapBuild = genBuild("sourcemap");
     beforeAll(sourcemapBuild.before);

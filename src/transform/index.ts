@@ -4,6 +4,7 @@ import type { Plugin } from "rollup";
 import ts from "typescript";
 
 import { type Api, useDtsApi } from "../api.js";
+import type { Options, Path } from "../options.js";
 import { getTextHelper, sourceMapHelper } from "../utils/sourcemap-helper.js";
 import { ExportsFinder } from "./ExportsFinder.js";
 import { NamespaceFinder } from "./NamespaceFinder.js";
@@ -32,7 +33,9 @@ function parse(fileName: string, code: string): ts.SourceFile {
  *    the postprocess convert any javascript code that was created for namespace
  *    exports into TypeScript namespaces. See `NamespaceFixer.ts`.
  */
-export const transform = () => {
+export const transform = ({
+  jsdocExplorer,
+}: Options) => {
   const allTypeReferences = new Map<string, Set<string>>();
   const allFileReferences = new Map<string, Set<string>>();
 
@@ -142,7 +145,53 @@ export const transform = () => {
         return "export {  }";
       }
 
-      for (let [location, generatedCode] of new NamespaceFinder(parse(chunk.fileName, code)).run()) {
+      const sourceFile = parse(chunk.fileName, code);
+      const emitJSDoc = async (stmt: ts.Statement, paths: readonly Path[] = []) => {
+        const [jsdoc] = ts.getJSDocCommentsAndTags(stmt);
+        let shouldRecursive = true;
+        if (jsdoc) {
+          if (!ts.isJSDoc(jsdoc)) {
+            throw new Error("Expected JSDoc");
+          }
+          let id: string | undefined;
+          if (
+            "name" in stmt && ts.isIdentifier(
+              // @ts-expect-error
+              stmt.name,
+            )
+          ) {
+            id = stmt.name.text;
+          }
+          if (ts.isVariableStatement(stmt)) {
+            id = stmt.declarationList.declarations[0]?.name.getText();
+          }
+          await jsdocExplorer?.call(this, jsdoc, {
+            ts,
+            input: chunk.facadeModuleId,
+            output: chunk.fileName,
+            paths: [...paths, id ?? "unknown"],
+            chunk,
+            sourceFile,
+            stopRecursive() {
+              shouldRecursive = false;
+            },
+          });
+        }
+        if (!shouldRecursive) return;
+
+        if (ts.isModuleDeclaration(stmt) && stmt.body) {
+          const newPaths = [...paths, stmt.name.text];
+          if (ts.isModuleBlock(stmt.body)) {
+            await Promise.all(stmt.body.statements.map(s => emitJSDoc(s, newPaths)));
+          }
+          if (ts.isModuleDeclaration(stmt.body)) {
+            await emitJSDoc(stmt.body, newPaths);
+          }
+        }
+      };
+      await Promise.all(sourceFile.statements.map(s => emitJSDoc(s)));
+
+      for (let [location, generatedCode] of new NamespaceFinder(sourceFile).run()) {
         const originalCode = code.slice(location.start, location.end);
         if (originalCode === generatedCode) continue;
 

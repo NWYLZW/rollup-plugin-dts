@@ -1,13 +1,13 @@
 import type * as ESTree from "estree";
 import ts from "typescript";
 import {
+  type Range,
   convertExpression,
   createDeclaration,
-  createIdentifier,
   createIIFE,
+  createIdentifier,
   createReference,
   createReturn,
-  type Range,
   withStartEnd,
 } from "./astHelpers.js";
 import { UnsupportedSyntaxError } from "./errors.js";
@@ -145,7 +145,7 @@ export class DeclarationScope {
     );
   }
 
-  convertComputedPropertyName(node: { name?: ts.PropertyName }) {
+  convertComputedPropertyName(node: { name?: ts.PropertyName; }) {
     if (!node.name || !ts.isComputedPropertyName(node.name)) {
       return;
     }
@@ -201,13 +201,13 @@ export class DeclarationScope {
         continue;
       }
       if (
-        ts.isMethodDeclaration(node) ||
-        ts.isMethodSignature(node) ||
-        ts.isConstructorDeclaration(node) ||
-        ts.isConstructSignatureDeclaration(node) ||
-        ts.isCallSignatureDeclaration(node) ||
-        ts.isGetAccessorDeclaration(node) ||
-        ts.isSetAccessorDeclaration(node)
+        ts.isMethodDeclaration(node)
+        || ts.isMethodSignature(node)
+        || ts.isConstructorDeclaration(node)
+        || ts.isConstructSignatureDeclaration(node)
+        || ts.isCallSignatureDeclaration(node)
+        || ts.isGetAccessorDeclaration(node)
+        || ts.isSetAccessorDeclaration(node)
       ) {
         this.convertParametersAndType(node);
       } else {
@@ -257,10 +257,10 @@ export class DeclarationScope {
       return;
     }
     if (
-      ts.isNamedTupleMember(node) ||
-      ts.isParenthesizedTypeNode(node) ||
-      ts.isTypeOperatorNode(node) ||
-      ts.isTypePredicateNode(node)
+      ts.isNamedTupleMember(node)
+      || ts.isParenthesizedTypeNode(node)
+      || ts.isTypeOperatorNode(node)
+      || ts.isTypePredicateNode(node)
     ) {
       this.convertTypeNode(node.type);
       return;
@@ -330,11 +330,11 @@ export class DeclarationScope {
     }
   }
 
-  convertNamespace(node: ts.ModuleDeclaration, relaxedModuleBlock = false) {
+  convertNamespace(node: ts.ModuleDeclaration) {
     this.pushScope();
 
-    if (relaxedModuleBlock && node.body && ts.isModuleDeclaration(node.body)) {
-      this.convertNamespace(node.body, true);
+    if (node.body && ts.isModuleDeclaration(node.body)) {
+      this.convertNamespace(node.body);
       return;
     }
     if (!node.body || !ts.isModuleBlock(node.body)) {
@@ -346,12 +346,12 @@ export class DeclarationScope {
     // first, hoist all the declarations for correct shadowing
     for (const stmt of statements) {
       if (
-        ts.isEnumDeclaration(stmt) ||
-        ts.isFunctionDeclaration(stmt) ||
-        ts.isClassDeclaration(stmt) ||
-        ts.isInterfaceDeclaration(stmt) ||
-        ts.isTypeAliasDeclaration(stmt) ||
-        ts.isModuleDeclaration(stmt)
+        ts.isEnumDeclaration(stmt)
+        || ts.isFunctionDeclaration(stmt)
+        || ts.isClassDeclaration(stmt)
+        || ts.isInterfaceDeclaration(stmt)
+        || ts.isTypeAliasDeclaration(stmt)
+        || ts.isModuleDeclaration(stmt)
       ) {
         if (stmt.name && ts.isIdentifier(stmt.name)) {
           this.pushTypeVariable(stmt.name);
@@ -405,7 +405,7 @@ export class DeclarationScope {
         continue;
       }
       if (ts.isModuleDeclaration(stmt)) {
-        this.convertNamespace(stmt, relaxedModuleBlock);
+        this.convertNamespace(stmt);
         continue;
       }
       if (ts.isEnumDeclaration(stmt)) {

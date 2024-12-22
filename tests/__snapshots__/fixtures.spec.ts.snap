@@ -25,6 +25,249 @@ export { classname };
 "
 `;
 
+exports[`fixtures > jsdoc explorer 1`] = `
+[
+  "index.d.ts",
+  "jsdoc.json",
+]
+`;
+
+exports[`fixtures > jsdoc explorer 2`] = `
+"/**
+ * This is description for Foo.
+ * @example
+ * const foo: Foo = {};
+ */
+interface Foo {
+    /**
+     * @default 'foo'
+     */
+    name?: string;
+}
+/**
+ * This is description for Bar.
+ * @test-other-tag value
+ */
+declare const bar = 1;
+/** @test-other-tag value */
+declare const bor = 1;
+/**
+ * This is description for bmr.
+ * @return {void}
+ * This is description for return value.
+ * And this is a link to {@link Foo}.
+ * And this is a plain link to {@linkplain Foo}.
+ * And this is a link with field to {@link Foo#name}.
+ * And this is a link with field to {@link Foo.name}.
+ * And this is not exist link to {@link NotExist}.
+ * And this is an url link to {@link https://example.com}.
+ * And this is an url link with text to {@link https://example.com|example}.
+ * @param {string} a - This is
+ * description for \`a\`.
+ */
+declare function bmr(a: string): void;
+/** @a_for value */
+declare const bxr = 1;
+declare namespace ns {
+    /**
+     * This is description for foo.
+     * @example
+     * console.log(foo);
+     */
+    const foo = 1;
+    namespace a {
+        /**
+         * This is description for bar.
+         * @example
+         * console.log(bar);
+         */
+        const bar = 1;
+    }
+}
+declare namespace ns.a {
+    /**
+     * This is description for foo.
+     * @example
+     * console.log(foo);
+     */
+    const foo = 1;
+}
+declare namespace ns.a.b.c {
+    /**
+     * This is description for foo.
+     * @example
+     * console.log(foo);
+     */
+    const foo = 1;
+}
+
+export { type Foo, bar, bmr, bor, bxr, ns };
+"
+`;
+
+exports[`fixtures > jsdoc explorer 3`] = `
+"{
+  "index.d.ts": [
+    {
+      "comment": "This is description for Foo.",
+      "tags": [
+        {
+          "name": "example",
+          "comment": "const foo: Foo = {};"
+        }
+      ],
+      "paths": [
+        "Foo"
+      ]
+    },
+    {
+      "comment": "This is description for Bar.",
+      "tags": [
+        {
+          "name": "test-other-tag",
+          "comment": "value"
+        }
+      ],
+      "paths": [
+        "bar"
+      ]
+    },
+    {
+      "tags": [
+        {
+          "name": "test-other-tag",
+          "comment": "value"
+        }
+      ],
+      "paths": [
+        "bor"
+      ]
+    },
+    {
+      "comment": "This is description for bmr.",
+      "tags": [
+        {
+          "name": "return",
+          "comment": [
+            "\\nThis is description for return value.\\nAnd this is a link to ",
+            {
+              "type": "like",
+              "text": "Foo"
+            },
+            ".\\nAnd this is a plain link to ",
+            {
+              "type": "plain",
+              "text": "Foo"
+            },
+            ".\\nAnd this is a link with field to ",
+            {
+              "type": "like",
+              "text": "Foo.name"
+            },
+            ".\\nAnd this is a link with field to ",
+            {
+              "type": "like",
+              "text": "Foo.name"
+            },
+            ".\\nAnd this is not exist link to ",
+            {
+              "type": "like",
+              "text": "NotExist"
+            },
+            ".\\nAnd this is an url link to ",
+            {
+              "type": "like",
+              "text": "https://example.com"
+            },
+            ".\\nAnd this is an url link with text to ",
+            {
+              "type": "like",
+              "text": "https://example.com|example"
+            },
+            "."
+          ]
+        },
+        {
+          "name": "param",
+          "comment": "- This is\\ndescription for \`a\`."
+        }
+      ],
+      "paths": [
+        "bmr"
+      ]
+    },
+    {
+      "tags": [
+        {
+          "name": "a_for",
+          "comment": "value"
+        }
+      ],
+      "paths": [
+        "bxr"
+      ]
+    },
+    {
+      "comment": "This is description for foo.",
+      "tags": [
+        {
+          "name": "example",
+          "comment": "console.log(foo);"
+        }
+      ],
+      "paths": [
+        "ns",
+        "foo"
+      ]
+    },
+    {
+      "comment": "This is description for bar.",
+      "tags": [
+        {
+          "name": "example",
+          "comment": "console.log(bar);"
+        }
+      ],
+      "paths": [
+        "ns",
+        "a",
+        "bar"
+      ]
+    },
+    {
+      "comment": "This is description for foo.",
+      "tags": [
+        {
+          "name": "example",
+          "comment": "console.log(foo);"
+        }
+      ],
+      "paths": [
+        "ns",
+        "a",
+        "foo"
+      ]
+    },
+    {
+      "comment": "This is description for foo.",
+      "tags": [
+        {
+          "name": "example",
+          "comment": "console.log(foo);"
+        }
+      ],
+      "paths": [
+        "ns",
+        "a",
+        "b",
+        "c",
+        "foo"
+      ]
+    }
+  ]
+}"
+`;
+
 exports[`fixtures > monorepo 1`] = `
 [
   "index.d.ts",

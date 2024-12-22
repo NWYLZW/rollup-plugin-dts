@@ -217,7 +217,7 @@ const plugin = (options: Options = {}): InputPluginOption => {
         }
       },
     },
-    transform(),
+    transform(options),
   ];
 };
 

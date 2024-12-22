@@ -1,25 +1,30 @@
-# @jiek/rollup-plugin-dts
+/** @import ts from 'typescript' */
+import _dts_ from "rollup-plugin-dts";
 
-Forked from [rollup-plugin-dts](https://github.com/Swatinem/rollup-plugin-dts) and added some features.
+/** @type {typeof import("../../src/index").dts} */
+const dts = _dts_;
 
-- [x] monorepo
-- [x] sourcemap
-- [ ] keep import attributes
-  - [x] static
-  - [ ] dynamic
-- [x] jsdocExplorer
-
-## `jsdocExplorer`
-
-You can use `jsdocExplorer` to customize the output of the jsdoc comments.
-
-```js
 const results = {};
 
-export default {
+export default /** @type {import('rollup').RollupOptions} */ ({
+  input: "src/index.ts",
+  output: {
+    dir: "dist",
+    format: "esm",
+    importAttributesKey: "with",
+  },
   plugins: [
     dts({
-      jsdocExplorer({ comment, tags, parent }, { ts, paths, output }) {
+      tsconfig: "tsconfig.json",
+      jsdocExplorer({
+        comment,
+        tags,
+        parent,
+      }, {
+        ts,
+        paths,
+        output,
+      }) {
         const resolvedTags = tags.map((tag) => ({
           name: tag.tagName.escapedText,
           comment: typeof tag.comment === "string"
@@ -78,9 +83,7 @@ export default {
           fileName: "jsdoc.json",
           source: JSON.stringify(results, null, 2),
         });
-        // or generate a markdown file
       },
     },
   ],
-};
-```
+});
