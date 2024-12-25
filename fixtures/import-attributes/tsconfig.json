@@ -12,11 +12,7 @@
     "strictNullChecks": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "skipLibCheck": true,
-    "paths": {
-      "bar": ["bar"],
-      "foo": ["foo"]
-    }
+    "skipLibCheck": true
   },
   "include": ["src"]
 }

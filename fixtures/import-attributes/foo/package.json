@@ -6,6 +6,10 @@
     ".": {
       "import": "./index.js",
       "require": "./index.cjs"
+    },
+    "./sub": {
+      "import": "./sub.js",
+      "require": "./sub.cjs"
     }
   }
 }

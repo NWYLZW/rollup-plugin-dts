@@ -1,3 +1,1 @@
-import type { foo } from "foo" with { "resolution-mode": "require" };
-
-export { foo };
+export type { foo } from "foo" with { "resolution-mode": "require" };

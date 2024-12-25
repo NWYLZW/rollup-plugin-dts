@@ -10,7 +10,7 @@ export default /** @type {import('rollup').RollupOptions} */ ({
   plugins: [
     dts({ tsconfig: "tsconfig.json" }),
     {
-      name: "import-attributes-exetrnal",
+      name: "import-attributes-external",
       resolveId(id, __, { attributes }) {
         if (attributes.external === "true") {
           return { id, external: true };

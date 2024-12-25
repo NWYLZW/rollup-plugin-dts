@@ -208,71 +208,13 @@ class Transformer {
     }
   }
 
-  convertExportDeclaration(node: ts.ExportDeclaration | ts.ExportAssignment) {
-    if (ts.isExportAssignment(node)) {
-      this.pushStatement(
-        withStartEnd(
-          {
-            type: "ExportDefaultDeclaration",
-            declaration: convertExpression(node.expression),
-          },
-          node,
-        ),
-      );
-      return;
-    }
-
-    const source = node.moduleSpecifier ? (convertExpression(node.moduleSpecifier) as any) : undefined;
-
-    if (!node.exportClause) {
-      // export * from './other'
-      this.pushStatement(
-        withStartEnd(
-          {
-            type: "ExportAllDeclaration",
-            source,
-            exported: null,
-            attributes: [],
-          },
-          node,
-        ),
-      );
-    } else if (ts.isNamespaceExport(node.exportClause)) {
-      // export * as name from './other'
-      this.pushStatement(
-        withStartEnd(
-          {
-            type: "ExportAllDeclaration",
-            source,
-            exported: createIdentifier(node.exportClause.name),
-            attributes: [],
-          },
-          node,
-        ),
-      );
-    } else {
-      // export { name } from './other'
-      const specifiers: Array<ESTree.ExportSpecifier> = [];
-      for (const elem of node.exportClause.elements) {
-        specifiers.push(this.convertExportSpecifier(elem));
-      }
-
-      this.pushStatement(
-        withStartEnd(
-          {
-            type: "ExportNamedDeclaration",
-            declaration: null,
-            specifiers,
-            source,
-            attributes: [],
-          },
-          node,
-        ),
-      );
-    }
-  }
-
-  convertImportDeclaration(node: ts.ImportDeclaration | ts.ImportEqualsDeclaration) {
+  convertImportAttributes(
+    node:
+      | ts.ExportDeclaration
+      | ts.ExportAssignment
+      | ts.ImportDeclaration
+      | ts.ImportEqualsDeclaration,
+  ) {
     const attributes: ESTree.ImportAttribute[] = [];
     if ("attributes" in node) {
       node.attributes?.forEachChild(node => {
@@ -291,6 +233,79 @@ class Transformer {
         });
       });
     }
+    return attributes;
+  }
+
+  convertExportDeclaration(node: ts.ExportDeclaration | ts.ExportAssignment) {
+    const attributes = this.convertImportAttributes(node);
+
+    if (ts.isExportAssignment(node)) {
+      this.pushStatement(
+        withStartEnd(
+          {
+            type: "ExportDefaultDeclaration",
+            declaration: convertExpression(node.expression),
+            attributes,
+          },
+          node,
+        ),
+      );
+      return;
+    }
+
+    const source = node.moduleSpecifier ? (convertExpression(node.moduleSpecifier) as any) : undefined;
+
+    if (!node.exportClause) {
+      // export * from './other'
+      this.pushStatement(
+        withStartEnd(
+          {
+            type: "ExportAllDeclaration",
+            source,
+            exported: null,
+            attributes,
+          },
+          node,
+        ),
+      );
+    } else if (ts.isNamespaceExport(node.exportClause)) {
+      // export * as name from './other'
+      this.pushStatement(
+        withStartEnd(
+          {
+            type: "ExportAllDeclaration",
+            source,
+            exported: createIdentifier(node.exportClause.name),
+            attributes,
+          },
+          node,
+        ),
+      );
+    } else {
+      // export { name } from './other'
+      const specifiers: Array<ESTree.ExportSpecifier> = [];
+      for (const elem of node.exportClause.elements) {
+        specifiers.push(this.convertExportSpecifier(elem));
+      }
+
+      this.pushStatement(
+        withStartEnd(
+          {
+            type: "ExportNamedDeclaration",
+            declaration: null,
+            specifiers,
+            source,
+            attributes,
+          },
+          node,
+        ),
+      );
+    }
+  }
+
+  convertImportDeclaration(node: ts.ImportDeclaration | ts.ImportEqualsDeclaration) {
+    const attributes = this.convertImportAttributes(node);
+
     if (ts.isImportEqualsDeclaration(node)) {
       if (ts.isEntityName(node.moduleReference)) {
         const scope = this.createDeclaration(node, node.name);
