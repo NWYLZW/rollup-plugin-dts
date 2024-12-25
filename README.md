@@ -9,6 +9,7 @@ Forked from [rollup-plugin-dts](https://github.com/Swatinem/rollup-plugin-dts) a
   - [ ] dynamic
   - [x] type resolution-mode
 - [x] jsdocExplorer
+- [x] support bundle dependencies dts
 
 ## `jsdocExplorer`
 
