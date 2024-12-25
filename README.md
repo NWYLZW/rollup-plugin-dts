@@ -7,7 +7,7 @@ Forked from [rollup-plugin-dts](https://github.com/Swatinem/rollup-plugin-dts) a
 - [ ] keep import attributes
   - [x] static
   - [ ] dynamic
-  - [ ] type resolution-mode
+  - [x] type resolution-mode
 - [x] jsdocExplorer
 
 ## `jsdocExplorer`

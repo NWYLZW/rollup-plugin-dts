@@ -32,7 +32,7 @@ exports[`fixtures > import with resolution mode attribute 1`] = `
 `;
 
 exports[`fixtures > import with resolution mode attribute 2`] = `
-"declare const foo = "foo-mts";
+"declare const foo = "foo-cts";
 
 export { foo };
 "
