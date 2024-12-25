@@ -25,6 +25,19 @@ export { classname };
 "
 `;
 
+exports[`fixtures > import with resolution mode attribute 1`] = `
+[
+  "index.d.ts",
+]
+`;
+
+exports[`fixtures > import with resolution mode attribute 2`] = `
+"declare const foo = "foo-mts";
+
+export { foo };
+"
+`;
+
 exports[`fixtures > jsdoc explorer 1`] = `
 [
   "index.d.ts",

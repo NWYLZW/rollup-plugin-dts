@@ -8,18 +8,26 @@ import { createApi } from "./api.js";
 import { type Options } from "./options.js";
 import {
   type ResolvedModule,
+  type ResolvedTSConfig,
   DTS_EXTENSIONS_REGEXP,
   TS_EXTENSIONS_REGEXP,
   createPrograms,
   formatHost,
-  getCompilerOptions,
   getModule,
+  resolveTSConfig,
 } from "./program.js";
 import { transform } from "./transform/index.js";
 import { sourceMapHelper } from "./utils/sourcemap-helper.js";
 
 const plugin = (options: Options = {}): InputPluginOption => {
   const api = createApi(options);
+  type Node = {
+    path: string;
+    parent?: Node;
+    tsconfig: ResolvedTSConfig;
+  };
+  const nodes: Record<string, Node> = {};
+  const resolvedTSConfigs: Record<string, ResolvedTSConfig> = {};
   return [
     {
       name: "dts",
@@ -59,7 +67,7 @@ const plugin = (options: Options = {}): InputPluginOption => {
       },
       resolveId: {
         order: "post",
-        handler(source, importer) {
+        handler(source, importer, { attributes }) {
           const { ctx } = api;
 
           if (!importer) {
@@ -71,6 +79,7 @@ const plugin = (options: Options = {}): InputPluginOption => {
           // normalize directory separators to forward slashes, as apparently typescript expects that?
           importer = importer.split("\\").join("/");
 
+          let tsconfig: ResolvedTSConfig | undefined;
           let resolvedCompilerOptions = ctx.resolvedOptions.compilerOptions;
           if (ctx.resolvedOptions.tsconfig) {
             // Here we have a chicken and egg problem.
@@ -79,27 +88,67 @@ const plugin = (options: Options = {}): InputPluginOption => {
             // since we have a custom `tsconfig.json`.
             // So, we use Node's resolver algorithm so we can see where the request is coming from so we
             // can load the custom `tsconfig.json` from the correct path.
-            const resolvedSource = source.startsWith(".") ? path.resolve(path.dirname(importer), source) : source;
-            resolvedCompilerOptions = getCompilerOptions(
-              resolvedSource,
-              ctx.resolvedOptions.compilerOptions,
-              ctx.resolvedOptions.tsconfig,
-            ).compilerOptions;
+            try {
+              const resolvedSource = source.startsWith(".") ? path.resolve(path.dirname(importer), source) : source;
+              tsconfig = resolveTSConfig(
+                resolvedSource,
+                ctx.resolvedOptions.compilerOptions,
+                ctx.resolvedOptions.tsconfig,
+              );
+            } catch (e) {
+              if (importer) {
+                // if we can't resolve the source, we can resolve the importer
+                tsconfig = nodes[importer]?.tsconfig ?? resolveTSConfig(
+                  importer,
+                  ctx.resolvedOptions.compilerOptions,
+                  ctx.resolvedOptions.tsconfig,
+                );
+              } else {
+                throw e;
+              }
+            }
+            resolvedCompilerOptions = tsconfig.compilerOptions;
           }
 
+          const resolutionMode = attributes["resolution-mode"];
           // resolve this via typescript
-          const { resolvedModule } = ts.resolveModuleName(source, importer, resolvedCompilerOptions, ts.sys);
+          const { resolvedModule } = ts.resolveModuleName(
+            source,
+            importer,
+            {
+              ...resolvedCompilerOptions,
+              customConditions: resolutionMode
+                ? [resolutionMode, ...(resolvedCompilerOptions.customConditions ?? [])]
+                : resolvedCompilerOptions.customConditions,
+            },
+            ts.sys,
+            undefined,
+            undefined,
+            resolutionMode === "require"
+              ? ts.ModuleKind.CommonJS
+              : resolutionMode === "import"
+              ? ts.ModuleKind.ESNext
+              : undefined,
+          );
           if (!resolvedModule) {
             return;
           }
 
-          if (!ctx.resolvedOptions.respectExternal && resolvedModule.isExternalLibraryImport) {
-            // here, we define everything that comes from `node_modules` as `external`.
-            return { id: source, external: true };
-          } else {
+          // here, we define everything that comes from `node_modules` as `external`.
+          const external = !ctx.resolvedOptions.respectExternal && resolvedModule.isExternalLibraryImport;
+          const id = external
+            ? source
             // using `path.resolve` here converts paths back to the system specific separators
-            return { id: path.resolve(resolvedModule.resolvedFileName) };
+            : path.resolve(resolvedModule.resolvedFileName);
+          if (tsconfig) {
+            resolvedTSConfigs[id] = tsconfig;
+            nodes[id] = {
+              path: id,
+              parent: nodes[importer],
+              tsconfig,
+            };
           }
+          return { id, external };
         },
       },
       async transform(inputCode, id) {
@@ -118,7 +167,7 @@ const plugin = (options: Options = {}): InputPluginOption => {
           maybeIds.push(id.replace(TS_EXTENSIONS_REGEXP, ".d.mts"));
         }
         for (const maybeId of maybeIds) {
-          const module = getModule(ctx, maybeId, inputCode);
+          const module = getModule(ctx, maybeId, inputCode, resolvedTSConfigs[id]);
           if (!module || !module.source) continue;
 
           watchFiles(module);
@@ -199,7 +248,7 @@ const plugin = (options: Options = {}): InputPluginOption => {
         //   `${generated.code}\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,${
         //     Buffer.from(JSON.stringify({
         //       ...generated.map,
-        //       sourcesContent: [code],
+        //       sourcesContent: [inputCode],
         //     })).toString("base64")
         //   }`,
         // );

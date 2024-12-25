@@ -68,6 +68,7 @@ describe("fixtures", () => {
   test.concurrent("import attributes", genBuild("import-attributes").run);
   test.concurrent("import resource", genBuild("import-resource").run);
   test.concurrent("jsdoc explorer", genBuild("jsdoc-explorer").run);
+  test.concurrent("import with resolution mode attribute", genBuild("import-with-resolution-mode-attribute").run);
   describe("sourcemap", () => {
     const sourcemapBuild = genBuild("sourcemap");
     beforeAll(sourcemapBuild.before);

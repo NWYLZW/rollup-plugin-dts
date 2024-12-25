@@ -1,0 +1,15 @@
+{
+  "name": "foo",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": {
+      "import": "./index.js",
+      "require": "./index.cjs"
+    },
+    "./sub": {
+      "import": "./sub.js",
+      "require": "./sub.cjs"
+    }
+  }
+}

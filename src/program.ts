@@ -55,16 +55,18 @@ function cacheConfig([fromPath, toPath]: [from: string, to: string], config: ts.
   }
 }
 
-export function getCompilerOptions(
-  input: string,
-  overrideOptions: ts.CompilerOptions,
-  overrideConfigPath?: string,
-): {
+export interface ResolvedTSConfig {
   dtsFiles: Array<string>;
   dirName: string;
   compilerOptions: ts.CompilerOptions;
   projectReferences?: readonly ts.ProjectReference[];
-} {
+}
+
+export function resolveTSConfig(
+  input: string,
+  overrideOptions: ts.CompilerOptions,
+  overrideConfigPath?: string,
+): ResolvedTSConfig {
   const compilerOptions = { ...DEFAULT_OPTIONS, ...overrideOptions };
   let dirName = path.dirname(input);
   let dtsFiles: Array<string> = [];
@@ -201,7 +203,7 @@ export function getCompilerOptions(
 
   for (const ref of projectReferences) {
     try {
-      return getCompilerOptions(input, overrideOptions, ref.path);
+      return resolveTSConfig(input, overrideOptions, ref.path);
     } catch (e) {}
   }
 
@@ -212,9 +214,9 @@ export function createProgram(
   fileName: string,
   overrideOptions: ts.CompilerOptions,
   tsconfig?: string,
-  overrideProjectReferences?: readonly ts.ProjectReference[],
+  resolvedTSConfig?: ResolvedTSConfig,
 ) {
-  const { dtsFiles, projectReferences, compilerOptions } = getCompilerOptions(
+  const { dtsFiles, projectReferences, compilerOptions } = resolvedTSConfig ?? resolveTSConfig(
     fileName,
     overrideOptions,
     tsconfig,
@@ -223,7 +225,7 @@ export function createProgram(
     rootNames: [fileName].concat(Array.from(dtsFiles)),
     options: compilerOptions,
     host: ts.createCompilerHost(compilerOptions, true),
-    projectReferences: overrideProjectReferences || projectReferences,
+    projectReferences: projectReferences,
   });
 }
 
@@ -245,7 +247,7 @@ export function createPrograms(
     }
 
     main = path.resolve(main);
-    const options = getCompilerOptions(main, overrideOptions, tsconfig);
+    const options = resolveTSConfig(main, overrideOptions, tsconfig);
     options.dtsFiles.forEach(dtsFiles.add, dtsFiles);
 
     if (!inputs.length) {
@@ -296,6 +298,7 @@ export function getModule(
   { entries, programs, resolvedOptions: { compilerOptions, tsconfig } }: DtsPluginContext,
   fileName: string,
   code: string,
+  resolvedTSConfig?: ResolvedTSConfig,
 ): ResolvedModule | null {
   // Create any `ts.SourceFile` objects on-demand for ".d.ts" modules,
   // but only when there are zero ".ts" entry points.
@@ -348,8 +351,9 @@ export function getModule(
       source,
       program: existingProgram,
     };
-  } else if (ts.sys.fileExists(fileName)) {
-    const newProgram = createProgram(fileName, compilerOptions, tsconfig);
+  }
+  if (ts.sys.fileExists(fileName)) {
+    const newProgram = createProgram(fileName, compilerOptions, tsconfig, resolvedTSConfig);
     programs.push(newProgram);
     // we created hte program from this fileName, so the source file must exist :P
     const source = newProgram.getSourceFile(fileName)!;
@@ -358,8 +362,7 @@ export function getModule(
       source,
       program: newProgram,
     };
-  } else {
-    // the file isn't part of an existing program and doesn't exist on disk
-    return null;
   }
+  // the file isn't part of an existing program and doesn't exist on disk
+  return null;
 }

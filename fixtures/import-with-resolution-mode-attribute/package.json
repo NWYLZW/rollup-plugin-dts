@@ -1,0 +1,12 @@
+{
+  "name": "import-with-resolution-mode-attribute",
+  "private": true,
+  "scripts": {
+    "build": "rollup -c --silent"
+  },
+  "dependencies": {
+    "foo": "./foo",
+    "rollup": "^4.27.3",
+    "rollup-plugin-dts": "../.."
+  }
+}
