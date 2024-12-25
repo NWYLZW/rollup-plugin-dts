@@ -144,6 +144,8 @@ const plugin = (options: Options = {}): InputPluginOption => {
             resolvedTSConfigs[id] = tsconfig;
             nodes[id] = {
               path: id,
+              // TODO a file can be imported by multiple files, so we should store all of them
+              //      maybe we can store parent importer in the path id?
               parent: nodes[importer],
               tsconfig,
             };
