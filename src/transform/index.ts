@@ -5,6 +5,7 @@ import ts from "typescript";
 
 import { type Api, useDtsApi } from "../api.js";
 import type { Options, Path } from "../options.js";
+import { TS_EXTENSIONS_REGEXP } from "../program.js";
 import { getTextHelper, sourceMapHelper } from "../utils/sourcemap-helper.js";
 import { ExportsFinder } from "./ExportsFinder.js";
 import { NamespaceFinder } from "./NamespaceFinder.js";
@@ -80,6 +81,9 @@ export const transform = ({
       };
     },
     async transform(code, id) {
+      if (!TS_EXTENSIONS_REGEXP.test(id)) {
+        return;
+      }
       const sourcemap = api.id2Sourcemap.get(id);
       let sourceFile = parse(id, code);
       const { typeReferences, fileReferences, ms } = await preProcess({
