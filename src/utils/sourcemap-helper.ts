@@ -355,22 +355,21 @@ export const sourceMapHelper = async (text: string, {
         const lines = generatedCode.split("\n");
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i]!;
-          if (i < lines.length) {
-            if (line) {
-              if (prevOP === dataOP) {
-                ms.appendRight(prevOP, line);
-              } else {
-                ms.update(prevOP, dataOP, line);
-              }
-            }
-            const newPos = prevOP + line.length;
-            if (originalTextHelper?.raw && originalTextHelper.raw.length > newPos) {
-              ms.update(newPos, newPos + 1, "\n");
-            }
-            continue;
-          }
           if (line) {
-            ms.appendRight(dataOP, line);
+            if (prevOP === dataOP) {
+              ms.appendRight(prevOP, line);
+            } else {
+              ms.update(prevOP, dataOP, line);
+            }
+          }
+          const newPos = prevOP + line.length;
+          const notEnd = originalTextHelper?.raw && originalTextHelper.raw.length > newPos;
+          const isOriginalEnd = i === lines.length - 1
+            && originalTextHelper?.raw
+            && originalTextHelper.raw.length === dataOP + 1;
+          if (notEnd) {
+            const pos = isOriginalEnd ? dataOP : newPos;
+            ms.update(pos, pos + 1, "\n");
           }
         }
       },
