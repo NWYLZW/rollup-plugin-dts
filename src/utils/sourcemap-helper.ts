@@ -348,27 +348,30 @@ export const sourceMapHelper = async (text: string, {
         const generatedCode = textHelper.raw.slice(prev.generatedPos, data.generatedPos);
         const { originalPos: prevOP } = prev;
         const { originalPos: dataOP } = data;
+        if (generatedCode.startsWith("/**")) {
+          ms.update(prevOP, dataOP, generatedCode);
+          return;
+        }
         const lines = generatedCode.split("\n");
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i]!;
-          if (!line) continue;
           if (i < lines.length) {
-            if (prevOP === dataOP) {
-              ms.appendRight(prevOP, line);
-            } else {
-              ms.update(prevOP, dataOP, line);
+            if (line) {
+              if (prevOP === dataOP) {
+                ms.appendRight(prevOP, line);
+              } else {
+                ms.update(prevOP, dataOP, line);
+              }
             }
             const newPos = prevOP + line.length;
             if (originalTextHelper?.raw && originalTextHelper.raw.length > newPos) {
-              ms.update(
-                newPos,
-                newPos + 1,
-                "\n",
-              );
+              ms.update(newPos, newPos + 1, "\n");
             }
             continue;
           }
-          ms.appendRight(dataOP, line);
+          if (line) {
+            ms.appendRight(dataOP, line);
+          }
         }
       },
     );
