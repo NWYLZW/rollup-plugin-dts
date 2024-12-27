@@ -355,11 +355,14 @@ export const sourceMapHelper = async (text: string, {
           } else {
             ms.update(prevOP, dataOP, line0);
           }
-          ms.update(
-            prevOP + line0.length,
-            prevOP + line0.length + 1,
-            "\n",
-          );
+          const newPos = prevOP + line0.length;
+          if (originalTextHelper?.raw && originalTextHelper.raw.length > newPos) {
+            ms.update(
+              newPos,
+              newPos + 1,
+              "\n",
+            );
+          }
           if (line1) {
             ms.appendRight(dataOP, line1);
           }
