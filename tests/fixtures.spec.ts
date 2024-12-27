@@ -65,7 +65,12 @@ function genBuild(path: string) {
 describe("fixtures", () => {
   test.concurrent("project with references", genBuild("project-with-references").run);
   test.concurrent("monorepo", genBuild("monorepo").run);
-  test.concurrent("import attributes", genBuild("import-attributes").run);
+  describe("import attributes", () => {
+    const sourcemapBuild = genBuild("import-attributes");
+    beforeAll(sourcemapBuild.before);
+    afterAll(sourcemapBuild.after);
+    test.concurrent("default", sourcemapBuild.runWithoutHook.bind(null, undefined));
+  });
   test.concurrent("import resource", genBuild("import-resource").run);
   test.concurrent("jsdoc explorer", genBuild("jsdoc-explorer").run);
   test.concurrent("import with resolution mode attribute", genBuild("import-with-resolution-mode-attribute").run);

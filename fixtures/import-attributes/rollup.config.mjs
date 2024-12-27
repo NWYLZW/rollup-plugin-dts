@@ -1,9 +1,9 @@
 import dts from "rollup-plugin-dts";
 
 export default /** @type {import('rollup').RollupOptions} */ ({
-  input: "src/index.ts",
+  input: `src/${process.env.ROLLUP_DTS_SUB_ENTRY ?? "index"}.ts`,
   output: {
-    dir: "dist",
+    dir: `dist/${process.env.ROLLUP_DTS_SUB_ENTRY ?? "index"}`,
     format: "esm",
     importAttributesKey: "with",
   },

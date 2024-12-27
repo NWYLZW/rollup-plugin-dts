@@ -81,7 +81,18 @@ export async function preProcess({
         }
         const originalText = originalTextHelper.getTextBetween(start, end);
         if (originalText === ";") continue;
-        ms.update(node.end - 1, node.end, originalText);
+        if (!originalText.startsWith(" with")) continue;
+        const lines = originalText.split("\n");
+        const withAttributesLines: string[] = [];
+        for (const line of lines) {
+          withAttributesLines.push(line);
+          if (line.endsWith(";")) break;
+          if (line.endsWith("}")) break;
+          // TODO `import {} from 'module' with { external: 'true' }; const a = 1;`
+          //      没有换行，字节在后面接了个定义的情况暂时不考虑
+        }
+
+        ms.update(node.end - 1, node.end, withAttributesLines.join("\n"));
       }
     }
   }
