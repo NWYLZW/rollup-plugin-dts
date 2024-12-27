@@ -224,26 +224,28 @@ const plugin = (options: Options = {}): InputPluginOption => {
             this.error("Failed to compile. Check the logs above.");
           }
         }
-        api.id2Sourcemap.set(id, {
-          ...generated.map,
-          sourcesContent: [inputCode],
-        });
-        if (ctx.resolvedOptions.experimentalSourcemapSupport && generated.map) {
-          try {
-            const [ms] = await sourceMapHelper(generated.code!, {
-              sourcemap: {
-                ...generated.map,
-                sourcesContent: [inputCode],
-              },
-            });
-            // console.log(
-            //   `${ms.toString()}\n//# sourceMappingURL=${
-            //     ms.generateMap({ hires: "boundary", includeContent: true }).toUrl()
-            //   }`,
-            // );
-            generated.map = ms.generateMap({ hires: "boundary" });
-          } catch (e) {
-            console.warn("Failed to generate source map for", id, e);
+        if (generated.map) {
+          api.id2Sourcemap.set(id, {
+            ...generated.map,
+            sourcesContent: [inputCode],
+          });
+          if (ctx.resolvedOptions.experimentalSourcemapSupport) {
+            try {
+              const [ms] = await sourceMapHelper(generated.code!, {
+                sourcemap: {
+                  ...generated.map,
+                  sourcesContent: [inputCode],
+                },
+              });
+              // console.log(
+              //   `${ms.toString()}\n//# sourceMappingURL=${
+              //     ms.generateMap({ hires: "boundary", includeContent: true }).toUrl()
+              //   }`,
+              // );
+              generated.map = ms.generateMap({ hires: "boundary" });
+            } catch (e) {
+              console.warn("Failed to generate source map for", id, e);
+            }
           }
         }
         // console.log(
