@@ -228,7 +228,7 @@ const plugin = (options: Options = {}): InputPluginOption => {
           ...generated.map,
           sourcesContent: [inputCode],
         });
-        if (generated.map) {
+        if (ctx.resolvedOptions.experimentalSourcemapSupport && generated.map) {
           try {
             const [ms] = await sourceMapHelper(generated.code!, {
               sourcemap: {

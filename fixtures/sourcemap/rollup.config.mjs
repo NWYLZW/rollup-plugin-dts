@@ -9,7 +9,10 @@ export default /** @type {import('rollup').RollupOptions} */ ({
     sourcemap: "inline",
   },
   plugins: [
-    dts({ tsconfig: "tsconfig.json" }),
+    dts({
+      experimentalSourcemapSupport: true,
+      tsconfig: "tsconfig.json",
+    }),
   ],
   external: ["foo"],
 });

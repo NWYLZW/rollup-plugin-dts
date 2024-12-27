@@ -32,6 +32,10 @@ export interface Options {
    */
   tsconfig?: string;
   /**
+   * @default false
+   */
+  experimentalSourcemapSupport?: boolean;
+  /**
    * @see https://jsdoc.app/
    * @see https://tsdoc.org/
    * @see https://github.com/microsoft/tsdoc/issues/21 microsoft/tsdoc#21
@@ -56,7 +60,8 @@ export function resolveDefaultOptions(options: Options) {
     ...options,
     compilerOptions: options.compilerOptions ?? {},
     respectExternal: options.respectExternal ?? false,
-  };
+    experimentalSourcemapSupport: options.experimentalSourcemapSupport ?? false,
+  } satisfies Options;
 }
 
 export type ResolvedOptions = ReturnType<typeof resolveDefaultOptions>;
